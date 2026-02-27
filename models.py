@@ -33,6 +33,7 @@ class MoodLevel(IntEnum):
 
 class DiaryEntryModel(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    patientProfileId: str
     timestamp: datetime
     moodLevel: MoodLevel
     emotions: List[str] = Field(default_factory=list)
