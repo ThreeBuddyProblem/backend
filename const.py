@@ -53,8 +53,8 @@ CREATE INDEX IF NOT EXISTS ix_{SQL_HEALTH_ALERTS_TABLE_NAME}_timestamp ON public
 """
 
 SQL_INSERT_DIARY_ENTRY_RETURNING_ID = f"""
-INSERT INTO {SQL_DIARY_ENTRIES_TABLE_NAME} (timestamp, mood_level, emotions, health_complaints, food_intake, notes, suggestions)
-VALUES (%s, %s, %s, %s, %s, %s, %s)
+INSERT INTO {SQL_DIARY_ENTRIES_TABLE_NAME} (timestamp, patient_profile_id, mood_level, emotions, health_complaints, food_intake, notes, suggestions)
+VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
 RETURNING id;
 """
 
