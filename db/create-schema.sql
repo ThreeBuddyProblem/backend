@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS diary_entries (
     emotions TEXT[],
     health_complaints TEXT,
     food_intake TEXT,
-    notes TEXT,
+    notes TEXT
 );
 
 CREATE TABLE IF NOT EXISTS patients (
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS patients (
     chronic_illnesses TEXT[],
     allergies TEXT[],
     drug_sensitivities TEXT[],
-    date_of_birth DATE,
+    date_of_birth DATE
 );
 
 CREATE INDEX IF NOT EXISTS ix_diary_entries_timestamp ON public.diary_entries (timestamp);
