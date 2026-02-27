@@ -3,10 +3,10 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pydantic import ValidationError
 from typing import Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import argparse
 
-from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel
+from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, AlertSeverity
 from llm_dispatcher import generate_recommendation_from_entries
 
 
@@ -209,6 +209,8 @@ def delete_alert(alert_id: str):
     del ALERT_STORE[alert_id]
     return "", 204
 
+##########################################################
+
 
 @app.route("/recommendation", methods=["GET"])
 def get_recommendation():
@@ -219,8 +221,33 @@ def get_recommendation():
     """
     model = request.args.get("model", "gemma3:4b")
     try:
-        # Only use entries from the last 30 days
-        cutoff = datetime.utcnow() - timedelta(days=30)
+        def _extract_text_from_llm_response(resp):
+            # Try common keys to find text in the LLM response JSON
+            if resp is None:
+                return ""
+            if isinstance(resp, str):
+                return resp
+            if isinstance(resp, dict):
+                # common fields
+                for k in ("text", "output", "result", "completion", "response", "content"):
+                    v = resp.get(k)
+                    if isinstance(v, str) and v.strip():
+                        return v
+                # OpenAI-like choices
+                choices = resp.get("choices") or resp.get("outputs")
+                if isinstance(choices, list) and len(choices) > 0:
+                    first = choices[0]
+                    if isinstance(first, dict):
+                        for k in ("text", "message", "content"):
+                            v = first.get(k)
+                            if isinstance(v, str) and v.strip():
+                                return v
+                # fallback to stringify
+                return str(resp)
+            return str(resp)
+
+        # Only use entries from the last 30 days (use timezone-aware UTC cutoff)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
         recent_entries = []
         for e in DIARY_STORE.values():
             ts = e.get("timestamp")
@@ -228,10 +255,23 @@ def get_recommendation():
                 continue
             # Accept ISO timestamps with or without trailing 'Z'
             try:
-                if isinstance(ts, str) and ts.endswith("Z"):
-                    parsed = datetime.fromisoformat(ts[:-1])
-                else:
-                    parsed = datetime.fromisoformat(ts)
+                    # normalize string timestamps to a form accepted by fromisoformat
+                    if isinstance(ts, str):
+                        s = ts
+                        if s.endswith("Z"):
+                            # replace Z with +00:00 so fromisoformat returns offset-aware datetime
+                            s = s.replace("Z", "+00:00")
+                        parsed = datetime.fromisoformat(s)
+                    elif isinstance(ts, datetime):
+                        parsed = ts
+                    else:
+                        # unexpected type, skip
+                        continue
+                    # ensure parsed is timezone-aware in UTC for safe comparison
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    else:
+                        parsed = parsed.astimezone(timezone.utc)
             except Exception:
                 # skip entries with unparsable timestamps
                 continue
@@ -247,7 +287,51 @@ def get_recommendation():
         # Return a 502 to indicate upstream service failure
         return jsonify({"error": "llm_error", "details": str(exc)}), 502
 
-    return jsonify({"recommendation": llm_response}), 200
+    # Extract human text from LLM response and build a HealthAlert
+    text = _extract_text_from_llm_response(llm_response)
+    # Parse: first word => severity, next line => title, rest => message
+    lines = [ln for ln in text.splitlines() if ln is not None]
+    severity_token = ""
+    title = ""
+    message = ""
+    if len(lines) >= 1 and lines[0].strip():
+        first_line = lines[0].strip()
+        parts = first_line.split()
+        if parts:
+            # take only alphabetic chars from token
+            token = ''.join(ch for ch in parts[0] if ch.isalpha()).lower()
+            try:
+                severity = AlertSeverity(token)
+            except Exception:
+                severity = AlertSeverity.info
+            severity_token = token
+    else:
+        severity = AlertSeverity.info
+
+    if len(lines) >= 2:
+        title = lines[1].strip()
+
+    if len(lines) >= 3:
+        message = "\n".join(lines[2:]).strip()
+    else:
+        # if there was only one or two lines, use the remaining text as message
+        remaining = "\n".join(lines[1:]).strip() if len(lines) > 1 else ""
+        message = remaining or text
+
+    try:
+        alert = HealthAlertModel(
+            title=title or "Recommendation",
+            message=message or text,
+            timestamp=datetime.utcnow(),
+            isRead=False,
+            severity=severity,
+        )
+        ALERT_STORE[alert.id] = alert.to_json_dict()
+    except Exception as exc:
+        # If alert creation fails, log and continue returning the recommendation
+        return jsonify({"recommendation": llm_response, "alert_error": str(exc)}), 200
+
+    return jsonify({"created_alert": alert.to_json_dict()}), 200
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Backend server")
