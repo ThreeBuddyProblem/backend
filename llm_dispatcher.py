@@ -45,9 +45,10 @@ def _build_prompt_from_entries(entries: List[Dict]) -> str:
 
     lines.append("")
     lines.append("Please provide:")
-    lines.append("- a short recommendation (1-3 bullets) with actionable steps")
-    lines.append("- any potential health concerns to watch for")
-    lines.append("- one suggested next action the patient can take now, if applicable (the health concerns may not always lead to a next action)")
+    lines.append("- the first word should be one of the following: info, warning, urgent (indicating the severity of any health concerns)")
+    lines.append("- in the next line, write a short title for the health alert which will be constructed from the response")
+    lines.append("- then: any potential health concerns to watch for,")
+    lines.append("- one gently suggested next action the patient can take now, if applicable (the health concerns may not always lead to a next action)")
 
     return "\n".join(lines)
 

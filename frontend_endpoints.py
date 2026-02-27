@@ -3,6 +3,8 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pydantic import ValidationError
 from typing import Dict
+from datetime import datetime, timedelta
+import argparse
 
 from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel
 from llm_dispatcher import generate_recommendation_from_entries
@@ -208,11 +210,6 @@ def delete_alert(alert_id: str):
     return "", 204
 
 
-if __name__ == "__main__":
-    # Useful defaults for local development. In production, run behind a WSGI server.
-    app.run(host="0.0.0.0", port=5000, debug=True)
-
-
 @app.route("/recommendation", methods=["GET"])
 def get_recommendation():
     """Generate a recommendation from all diary entries using the LLM.
@@ -222,10 +219,42 @@ def get_recommendation():
     """
     model = request.args.get("model", "gemma3:4b")
     try:
-        entries = list(DIARY_STORE.values())
-        llm_response = generate_recommendation_from_entries(entries, model=model)
+        # Only use entries from the last 30 days
+        cutoff = datetime.utcnow() - timedelta(days=30)
+        recent_entries = []
+        for e in DIARY_STORE.values():
+            ts = e.get("timestamp")
+            if not ts:
+                continue
+            # Accept ISO timestamps with or without trailing 'Z'
+            try:
+                if isinstance(ts, str) and ts.endswith("Z"):
+                    parsed = datetime.fromisoformat(ts[:-1])
+                else:
+                    parsed = datetime.fromisoformat(ts)
+            except Exception:
+                # skip entries with unparsable timestamps
+                continue
+
+            if parsed >= cutoff:
+                recent_entries.append(e)
+
+        if not recent_entries:
+            return jsonify({"error": "no_recent_entries", "details": "No diary entries in the last 30 days."}), 400
+
+        llm_response = generate_recommendation_from_entries(recent_entries, model=model)
     except Exception as exc:
         # Return a 502 to indicate upstream service failure
         return jsonify({"error": "llm_error", "details": str(exc)}), 502
 
     return jsonify({"recommendation": llm_response}), 200
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Backend server")
+    parser.add_argument("--port", required=False, help="Port of the server", default=5000)
+    return parser.parse_args()
+
+if __name__ == "__main__":
+    # Useful defaults for local development. In production, run behind a WSGI server.
+    args = parse_args()
+    app.run(host="0.0.0.0", port=args.port, debug=True)
