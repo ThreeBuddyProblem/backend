@@ -15,27 +15,11 @@ from llm_dispatcher import generate_recommendation_from_entries
 app = Flask(__name__)
 CORS(app)
 
-# --- Whisper model loading (lazy, on first transcribe request) ---
-_whisper_model = None
-_whisper_processor = None
-_whisper_device = None
+# The Whisper model should be loaded in a separate process (see `stt_launcher.py`).
+# The main backend will forward uploaded audio to that service and will not
+# initialize any heavy model locally.
 
-
-def _load_whisper():
-    global _whisper_model, _whisper_processor, _whisper_device
-    if _whisper_model is not None:
-        return
-
-    import torch
-    from transformers import WhisperProcessor, WhisperForConditionalGeneration
-
-    MODEL_NAME = "openai/whisper-small"
-    _whisper_device = "mps" if torch.backends.mps.is_available() else "cpu"
-    print(f"Loading Whisper model: {MODEL_NAME} ({_whisper_device})...")
-    _whisper_processor = WhisperProcessor.from_pretrained(MODEL_NAME)
-    _whisper_model = WhisperForConditionalGeneration.from_pretrained(MODEL_NAME).to(_whisper_device)
-    _whisper_model.eval()
-    print("Whisper model ready!")
+import requests
 
 # Simple in-memory data stores (for demo/dev). Separate stores for entries and profiles.
 DIARY_STORE: Dict[str, dict] = {}
@@ -246,61 +230,27 @@ def transcribe_audio():
 
     Returns: {"text": "transcribed text..."}
     """
-    import torch
-    import torchaudio
-    import numpy as np
-
+    # Forward the uploaded audio file to a separately-run STT service
     if "file" not in request.files:
         return jsonify({"error": "No audio file provided"}), 400
 
     audio_file = request.files["file"]
-    language = request.form.get("language", "hu")
+    stt_url = request.args.get("stt_url") or os.environ.get("STT_URL") or "http://127.0.0.1:11435/transcribe"
 
-    # Save uploaded file to a temp location
-    suffix = os.path.splitext(audio_file.filename or "audio.m4a")[1] or ".m4a"
-    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
-        audio_file.save(tmp)
-        tmp_path = tmp.name
+    # Read file bytes and forward as multipart/form-data
+    try:
+        data = audio_file.read()
+        files = {"file": (audio_file.filename or "audio", data, audio_file.mimetype)}
+        resp = requests.post(stt_url, files=files, timeout=60)
+    except requests.RequestException as exc:
+        return jsonify({"error": "stt_unreachable", "details": str(exc)}), 502
 
     try:
-        _load_whisper()
+        body = resp.json()
+    except Exception:
+        body = {"error": "stt_non_json_response", "text": resp.text}
 
-        # Load and resample audio to 16kHz mono float32
-        waveform, sample_rate = torchaudio.load(tmp_path)
-        if sample_rate != 16000:
-            resampler = torchaudio.transforms.Resample(sample_rate, 16000)
-            waveform = resampler(waveform)
-        # Convert to mono if stereo
-        if waveform.shape[0] > 1:
-            waveform = waveform.mean(dim=0, keepdim=True)
-        audio_np = waveform.squeeze().numpy().astype(np.float32)
-
-        # Run Whisper inference
-        inputs = _whisper_processor(
-            audio_np,
-            sampling_rate=16000,
-            return_tensors="pt",
-        )
-        input_features = inputs.input_features.to(_whisper_device)
-
-        with torch.no_grad():
-            predicted_ids = _whisper_model.generate(
-                input_features,
-                language=language,
-                task="transcribe",
-                max_new_tokens=256,
-            )
-
-        text = _whisper_processor.batch_decode(
-            predicted_ids, skip_special_tokens=True
-        )[0].strip()
-
-        return jsonify({"text": text}), 200
-
-    except Exception as exc:
-        return jsonify({"error": "transcription_failed", "details": str(exc)}), 500
-    finally:
-        os.unlink(tmp_path)
+    return jsonify({"stt_status": resp.status_code, "stt_response": body}), resp.status_code
 
 @app.route("/recommendation", methods=["GET"])
 def get_recommendation():
