@@ -178,7 +178,35 @@ def find_patient_profile_by_id(id: int) -> PatientProfileModel:
     return patient_profile
 
 
-def find_health_alert_by_id(id: int) -> PatientProfileModel:
+def find_all_patient_profiles() -> list[PatientProfileModel]:
+    patient_profiles = []
+    query = f"SELECT * FROM {const.SQL_PATIENTS_TABLE_NAME}"
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+    for row in rows:
+
+        patient_profile_id, name, tajNumber, languageCode, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
+
+        patient_profile = PatientProfileModel(
+            name=name,
+            tajNumber=tajNumber,
+            languageCode=languageCode,
+            chronicIllnesses=chronicIllnesses,
+            allergies=allergies,
+            drugSensitivities=drugSensitivities,
+            dateOfBirth=dateOfBirth,
+        )
+        patient_profile.id = patient_profile_id
+
+        patient_profiles.append(patient_profile)
+
+    return patient_profiles
+
+
+def find_health_alert_by_id(id: int) -> HealthAlertModel:
     query = f"SELECT * FROM {const.SQL_HEALTH_ALERTS_TABLE_NAME}" \
     + " WHERE id = %s;"
     with get_db_connection() as db_connection:
@@ -199,3 +227,28 @@ def find_health_alert_by_id(id: int) -> PatientProfileModel:
     health_alert.id = health_alert_id
 
     return health_alert
+
+
+def find_all_health_alerts() -> list[HealthAlertModel]:
+    health_alerts = []
+    query = f"SELECT * FROM {const.SQL_HEALTH_ALERTS_TABLE_NAME}"
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(query, [id])
+        rows = cursor.fetchall()
+
+    for row in rows:
+        health_alert_id, title, message, timestamp, isRead, severity = row
+
+        health_alert = HealthAlertModel(
+            title=title,
+            message=message,
+            timestamp=timestamp,
+            isRead=isRead,
+            severity=severity,
+        )
+        health_alert.id = health_alert_id
+
+        health_alerts.append(health_alert)
+
+    return health_alerts

@@ -8,6 +8,7 @@ import os
 import tempfile
 import argparse
 
+import db
 from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, AlertSeverity
 from llm_dispatcher import generate_recommendation_from_entries
 
@@ -49,19 +50,22 @@ def create_entry():
     return jsonify(DIARY_STORE[entry.id]), 201
 
 
-@app.route("/entries", methods=["GET"])
-def list_entries():
-    """List all diary entries."""
-    return jsonify(list(DIARY_STORE.values())), 200
-
-
 @app.route("/entries/<entry_id>", methods=["GET"])
-def get_entry(entry_id: str):
+def get_entry(entry_id: int):
     """Return a single diary entry by id."""
-    item = DIARY_STORE.get(entry_id)
-    if item is None:
+    entry = db.find_diary_entry_by_id(entry_id)
+    if entry is None:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(item), 200
+    return jsonify(entry), 200
+
+
+@app.route("/profiles/<patient_profile_id>/entries", methods=["GET"])
+def get_patient_profile_entries(patient_profile_id: int):
+    """Return all diary entries of patient by patient profile id."""
+    entries = db.find_diary_entries_by_patient_profile_id(patient_profile_id)
+    if entries is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(entries), 200
 
 
 @app.route("/entries/<entry_id>", methods=["PUT"])
@@ -115,16 +119,16 @@ def create_profile():
 @app.route("/profiles", methods=["GET"])
 def list_profiles():
     """List all patient profiles."""
-    return jsonify(list(PROFILE_STORE.values())), 200
+    return jsonify(db.find_all_patient_profiles()), 200
 
 
 @app.route("/profiles/<profile_id>", methods=["GET"])
-def get_profile(profile_id: str):
+def get_profile(profile_id: int):
     """Return a single profile by id."""
-    item = PROFILE_STORE.get(profile_id)
-    if item is None:
+    profile = db.find_patient_profile_by_id(profile_id)
+    if profile is None:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(item), 200
+    return jsonify(profile), 200
 
 
 @app.route("/profiles/<profile_id>", methods=["PUT"])
@@ -177,16 +181,16 @@ def create_alert():
 @app.route("/alerts", methods=["GET"])
 def list_alerts():
     """List all health alerts."""
-    return jsonify(list(ALERT_STORE.values())), 200
+    return jsonify(db.find_all_health_alerts()), 200
 
 
 @app.route("/alerts/<alert_id>", methods=["GET"])
-def get_alert(alert_id: str):
+def get_alert(alert_id: int):
     """Return a single alert by id."""
-    item = ALERT_STORE.get(alert_id)
-    if item is None:
+    health_alert = db.find_health_alert_by_id(alert_id)
+    if health_alert is None:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(item), 200
+    return jsonify(health_alert), 200
 
 
 @app.route("/alerts/<alert_id>", methods=["PUT"])
