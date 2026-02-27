@@ -8,7 +8,7 @@ from typing import Optional
 from flask import Flask, jsonify, request
 
 
-def create_app(model_name: str = "openai/whisper-small", device: Optional[str] = None):
+def create_app(model_name: str = "sarpba/whisper-hu-small-finetuned", device: Optional[str] = None):
 	app = Flask(__name__)
 
 	import torch
@@ -79,7 +79,7 @@ def create_app(model_name: str = "openai/whisper-small", device: Optional[str] =
 
 def parse_args():
 	p = argparse.ArgumentParser()
-	p.add_argument("--model", default="openai/whisper-small")
+	p.add_argument("--model", default="sarpba/whisper-hu-small-finetuned")
 	p.add_argument("--host", default="0.0.0.0")
 	p.add_argument("--port", type=int, default=11435)
 	p.add_argument("--device", default=None)
