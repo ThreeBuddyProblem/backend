@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS diary_entries (
     emotions TEXT[],
     health_complaints TEXT,
     food_intake TEXT,
-    notes TEXT
+    notes TEXT,
+    suggestions TEXT
 );
 
 CREATE TABLE IF NOT EXISTS patients (
