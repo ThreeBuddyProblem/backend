@@ -4,6 +4,8 @@ from flask_cors import CORS
 from pydantic import ValidationError
 from typing import Dict
 from datetime import datetime, timedelta, timezone
+import os
+import tempfile
 import argparse
 
 from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, AlertSeverity
@@ -12,6 +14,28 @@ from llm_dispatcher import generate_recommendation_from_entries
 
 app = Flask(__name__)
 CORS(app)
+
+# --- Whisper model loading (lazy, on first transcribe request) ---
+_whisper_model = None
+_whisper_processor = None
+_whisper_device = None
+
+
+def _load_whisper():
+    global _whisper_model, _whisper_processor, _whisper_device
+    if _whisper_model is not None:
+        return
+
+    import torch
+    from transformers import WhisperProcessor, WhisperForConditionalGeneration
+
+    MODEL_NAME = "openai/whisper-small"
+    _whisper_device = "mps" if torch.backends.mps.is_available() else "cpu"
+    print(f"Loading Whisper model: {MODEL_NAME} ({_whisper_device})...")
+    _whisper_processor = WhisperProcessor.from_pretrained(MODEL_NAME)
+    _whisper_model = WhisperForConditionalGeneration.from_pretrained(MODEL_NAME).to(_whisper_device)
+    _whisper_model.eval()
+    print("Whisper model ready!")
 
 # Simple in-memory data stores (for demo/dev). Separate stores for entries and profiles.
 DIARY_STORE: Dict[str, dict] = {}
@@ -209,8 +233,74 @@ def delete_alert(alert_id: str):
     del ALERT_STORE[alert_id]
     return "", 204
 
-##########################################################
 
+## Transcription endpoint ################################
+
+@app.route("/transcribe", methods=["POST"])
+def transcribe_audio():
+    """Transcribe an uploaded audio file using Whisper.
+
+    Accepts multipart form data with:
+      - file: audio file (WAV, m4a, etc.)
+      - language: language code (e.g. 'hu', 'en') — optional, defaults to 'hu'
+
+    Returns: {"text": "transcribed text..."}
+    """
+    import torch
+    import torchaudio
+    import numpy as np
+
+    if "file" not in request.files:
+        return jsonify({"error": "No audio file provided"}), 400
+
+    audio_file = request.files["file"]
+    language = request.form.get("language", "hu")
+
+    # Save uploaded file to a temp location
+    suffix = os.path.splitext(audio_file.filename or "audio.m4a")[1] or ".m4a"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        audio_file.save(tmp)
+        tmp_path = tmp.name
+
+    try:
+        _load_whisper()
+
+        # Load and resample audio to 16kHz mono float32
+        waveform, sample_rate = torchaudio.load(tmp_path)
+        if sample_rate != 16000:
+            resampler = torchaudio.transforms.Resample(sample_rate, 16000)
+            waveform = resampler(waveform)
+        # Convert to mono if stereo
+        if waveform.shape[0] > 1:
+            waveform = waveform.mean(dim=0, keepdim=True)
+        audio_np = waveform.squeeze().numpy().astype(np.float32)
+
+        # Run Whisper inference
+        inputs = _whisper_processor(
+            audio_np,
+            sampling_rate=16000,
+            return_tensors="pt",
+        )
+        input_features = inputs.input_features.to(_whisper_device)
+
+        with torch.no_grad():
+            predicted_ids = _whisper_model.generate(
+                input_features,
+                language=language,
+                task="transcribe",
+                max_new_tokens=256,
+            )
+
+        text = _whisper_processor.batch_decode(
+            predicted_ids, skip_special_tokens=True
+        )[0].strip()
+
+        return jsonify({"text": text}), 200
+
+    except Exception as exc:
+        return jsonify({"error": "transcription_failed", "details": str(exc)}), 500
+    finally:
+        os.unlink(tmp_path)
 
 @app.route("/recommendation", methods=["GET"])
 def get_recommendation():
