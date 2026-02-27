@@ -5,6 +5,7 @@ from pydantic import ValidationError
 from typing import Dict
 
 from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel
+from llm_dispatcher import generate_recommendation_from_entries
 
 
 app = Flask(__name__)
@@ -210,3 +211,21 @@ def delete_alert(alert_id: str):
 if __name__ == "__main__":
     # Useful defaults for local development. In production, run behind a WSGI server.
     app.run(host="0.0.0.0", port=5000, debug=True)
+
+
+@app.route("/recommendation", methods=["GET"])
+def get_recommendation():
+    """Generate a recommendation from all diary entries using the LLM.
+
+    Optional query parameter: ?model=gemma3:4b
+    Returns the raw JSON returned by the LLM endpoint under the `recommendation` key.
+    """
+    model = request.args.get("model", "gemma3:4b")
+    try:
+        entries = list(DIARY_STORE.values())
+        llm_response = generate_recommendation_from_entries(entries, model=model)
+    except Exception as exc:
+        # Return a 502 to indicate upstream service failure
+        return jsonify({"error": "llm_error", "details": str(exc)}), 502
+
+    return jsonify({"recommendation": llm_response}), 200
