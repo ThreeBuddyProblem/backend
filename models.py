@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import datetime
 from enum import IntEnum, Enum
 from typing import List, Optional
-import uuid
 
 from pydantic import BaseModel, Field, validator
 
