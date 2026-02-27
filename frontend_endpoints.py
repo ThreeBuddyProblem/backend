@@ -239,9 +239,15 @@ def transcribe_audio():
 
     # Read file bytes and forward as multipart/form-data
     try:
-        data = audio_file.read()
-        files = {"file": (audio_file.filename or "audio", data, audio_file.mimetype)}
-        resp = requests.post(stt_url, files=files, timeout=60)
+        data_bytes = audio_file.read()
+        files = {"file": (audio_file.filename or "audio", data_bytes, audio_file.mimetype)}
+        # forward language param if provided by the caller
+        forward_data = {}
+        language = request.form.get("language")
+        if language:
+            forward_data["language"] = language
+
+        resp = requests.post(stt_url, files=files, data=forward_data or None, timeout=60)
     except requests.RequestException as exc:
         return jsonify({"error": "stt_unreachable", "details": str(exc)}), 502
 

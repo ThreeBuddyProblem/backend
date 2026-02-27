@@ -60,6 +60,7 @@ def create_app(model_name: str = "openai/whisper-small", device: Optional[str] =
 				predicted_ids = model.generate(
 					input_features,
 					max_new_tokens=256,
+                    language=request.form.get("language"),
 				)
 
 			text = processor.batch_decode(predicted_ids, skip_special_tokens=True)[0].strip()
