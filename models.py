@@ -32,7 +32,7 @@ class MoodLevel(IntEnum):
 
 
 class DiaryEntryModel(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: int
     patientProfileId: str
     timestamp: datetime
     moodLevel: MoodLevel
@@ -81,7 +81,7 @@ class AlertSeverity(str, Enum):
 
 
 class HealthAlertModel(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: int
     title: str
     message: str
     timestamp: datetime
@@ -111,7 +111,7 @@ class PatientProfileModel(BaseModel):
     JSON keys are kept compatible with the Dart `toJson()` (e.g. `languageCode`).
     """
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: int
     name: str = ""
     tajNumber: Optional[str] = None
     languageCode: str = Field(default="en")
