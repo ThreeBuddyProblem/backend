@@ -263,8 +263,8 @@ def transcribe_audio():
 
     return jsonify({"stt_status": resp.status_code, "stt_response": body}), resp.status_code
 
-@app.route("/recommendation", methods=["GET"])
-def get_recommendation():
+@app.route("/profiles/<profile_id>/recommendation", methods=["GET"])
+def get_recommendation(patient_profile_id: int):
     """Generate a recommendation from all diary entries using the LLM.
 
     Optional query parameter: ?model=gemma3:4b
@@ -371,13 +371,14 @@ def get_recommendation():
 
     try:
         alert = HealthAlertModel(
-            title=title or "Recommendation",
-            message=message or text,
-            timestamp=datetime.utcnow(),
-            isRead=False,
-            severity=severity,
+            patient_profile_id,
+            title or "Recommendation",
+            message or text,
+            datetime.utcnow(),
+            False,
+            severity,
         )
-        ALERT_STORE[alert.id] = alert.to_json_dict()
+        alert = db.insert_health_alert(alert)
     except Exception as exc:
         # If alert creation fails, log and continue returning the recommendation
         return jsonify({"recommendation": llm_response, "alert_error": str(exc)}), 200

@@ -41,6 +41,17 @@ class DiaryEntryModel(BaseModel):
     notes: Optional[str] = None
     suggestion: Optional[str] = None
 
+    def __init__(self, patient_profile_id, timestamp, mood_level, emotions, health_complaints, food_intake, notes, suggestion):
+        self.patientProfileId = patient_profile_id
+        self.timestamp = timestamp
+        self.moodLevel = mood_level
+        self.emotions = emotions
+        self.healthComplaints = health_complaints
+        self.foodIntake = food_intake
+        self.notes = notes
+        self.suggestion = suggestion
+
+
     @validator("emotions", pre=True, always=True)
     def ensure_emotions_list(cls, v):
         if v is None:
@@ -81,11 +92,21 @@ class AlertSeverity(str, Enum):
 
 class HealthAlertModel(BaseModel):
     id: int
+    patientProfileId: int
     title: str
     message: str
     timestamp: datetime
     isRead: bool = False
     severity: AlertSeverity = AlertSeverity.info
+
+    def __init__(self, patient_profile_id, title, message, timestamp, is_read, severity):
+        self.patientProfileId = patient_profile_id
+        self.title = title
+        self.message = message
+        self.timestamp = timestamp
+        self.isRead = is_read
+        self.severity = severity
+
 
     class Config:
         use_enum_values = True
@@ -118,6 +139,16 @@ class PatientProfileModel(BaseModel):
     allergies: List[str] = Field(default_factory=list)
     drugSensitivities: List[str] = Field(default_factory=list)
     dateOfBirth: Optional[datetime] = None
+
+    def __init__(self, name , taj_number , language_code , chronic_illnesses , allergies , drug_sensitivities , date_of_birth):
+        self.name = name
+        self.tajNumber = taj_number
+        self.languageCode = language_code
+        self.chronicIllnesses = chronic_illnesses
+        self.allergies = allergies
+        self.drugSensitivities = drug_sensitivities
+        self.dateOfBirth = date_of_birth
+
 
     @validator("chronicIllnesses", "allergies", "drugSensitivities", pre=True, always=True)
     def ensure_list_of_strings(cls, v):
