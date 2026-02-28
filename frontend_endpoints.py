@@ -57,7 +57,7 @@ def get_entry(entry_id: int):
     entry = db.find_diary_entry_by_id(entry_id)
     if entry is None:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(entry), 200
+    return jsonify(entry.to_json_dict()), 200
 
 
 @app.route("/profiles/<patient_profile_id>/entries", methods=["GET"])
@@ -66,7 +66,7 @@ def get_patient_profile_entries(patient_profile_id: int):
     entries = db.find_diary_entries_by_patient_profile_id(patient_profile_id)
     if entries is None:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(entries), 200
+    return jsonify([e.to_json_dict() for e in entries]), 200
 
 
 @app.route("/entries/<entry_id>", methods=["PUT"])
@@ -120,7 +120,7 @@ def create_profile():
 @app.route("/profiles", methods=["GET"])
 def list_profiles():
     """List all patient profiles."""
-    return jsonify(db.find_all_patient_profiles()), 200
+    return jsonify([p.to_json_dict() for p in db.find_all_patient_profiles()]), 200
 
 
 @app.route("/profiles/<profile_id>", methods=["GET"])
@@ -129,7 +129,7 @@ def get_profile(profile_id: int):
     profile = db.find_patient_profile_by_id(profile_id)
     if profile is None:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(profile), 200
+    return jsonify(profile.to_json_dict()), 200
 
 
 @app.route("/profiles/<profile_id>", methods=["PUT"])
@@ -182,7 +182,7 @@ def create_alert():
 @app.route("/alerts", methods=["GET"])
 def list_alerts():
     """List all health alerts."""
-    return jsonify(db.find_all_health_alerts()), 200
+    return jsonify([a.to_json_dict() for a in db.find_all_health_alerts()]), 200
 
 
 @app.route("/alerts/<alert_id>", methods=["GET"])
@@ -191,7 +191,7 @@ def get_alert(alert_id: int):
     health_alert = db.find_health_alert_by_id(alert_id)
     if health_alert is None:
         return jsonify({"error": "Not found"}), 404
-    return jsonify(health_alert), 200
+    return jsonify(health_alert.to_json_dict()), 200
 
 
 @app.route("/alerts/<alert_id>", methods=["PUT"])
@@ -264,27 +264,25 @@ def transcribe_audio():
     return jsonify({"stt_status": resp.status_code, "stt_response": body}), resp.status_code
 
 @app.route("/profiles/<profile_id>/recommendation", methods=["GET"])
-def get_recommendation(patient_profile_id: int):
+def get_recommendation(profile_id: int):
     """Generate a recommendation from all diary entries using the LLM.
 
     Optional query parameter: ?model=gemma3:4b
     Returns the raw JSON returned by the LLM endpoint under the `recommendation` key.
     """
+    profile_id = int(profile_id)
     model = request.args.get("model", "gemma3:4b")
     try:
         def _extract_text_from_llm_response(resp):
-            # Try common keys to find text in the LLM response JSON
             if resp is None:
                 return ""
             if isinstance(resp, str):
                 return resp
             if isinstance(resp, dict):
-                # common fields
                 for k in ("text", "output", "result", "completion", "response", "content"):
                     v = resp.get(k)
                     if isinstance(v, str) and v.strip():
                         return v
-                # OpenAI-like choices
                 choices = resp.get("choices") or resp.get("outputs")
                 if isinstance(choices, list) and len(choices) > 0:
                     first = choices[0]
@@ -293,42 +291,21 @@ def get_recommendation(patient_profile_id: int):
                             v = first.get(k)
                             if isinstance(v, str) and v.strip():
                                 return v
-                # fallback to stringify
                 return str(resp)
             return str(resp)
 
-        # Only use entries from the last 30 days (use timezone-aware UTC cutoff)
+        # Fetch entries from DB for this profile, filter to last 30 days
+        all_entries = db.find_diary_entries_by_patient_profile_id(profile_id)
         cutoff = datetime.now(timezone.utc) - timedelta(days=30)
         recent_entries = []
-        for e in DIARY_STORE.values():
-            ts = e.get("timestamp")
-            if not ts:
+        for entry in all_entries:
+            ts = entry.timestamp
+            if ts is None:
                 continue
-            # Accept ISO timestamps with or without trailing 'Z'
-            try:
-                    # normalize string timestamps to a form accepted by fromisoformat
-                    if isinstance(ts, str):
-                        s = ts
-                        if s.endswith("Z"):
-                            # replace Z with +00:00 so fromisoformat returns offset-aware datetime
-                            s = s.replace("Z", "+00:00")
-                        parsed = datetime.fromisoformat(s)
-                    elif isinstance(ts, datetime):
-                        parsed = ts
-                    else:
-                        # unexpected type, skip
-                        continue
-                    # ensure parsed is timezone-aware in UTC for safe comparison
-                    if parsed.tzinfo is None:
-                        parsed = parsed.replace(tzinfo=timezone.utc)
-                    else:
-                        parsed = parsed.astimezone(timezone.utc)
-            except Exception:
-                # skip entries with unparsable timestamps
-                continue
-
-            if parsed >= cutoff:
-                recent_entries.append(e)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts >= cutoff:
+                recent_entries.append(entry.to_json_dict())
 
         if not recent_entries:
             return jsonify({"error": "no_recent_entries", "details": "No diary entries in the last 30 days."}), 400
@@ -371,7 +348,7 @@ def get_recommendation(patient_profile_id: int):
 
     try:
         alert = HealthAlertModel(
-            patientProfileId=patient_profile_id,
+            patientProfileId=profile_id,
             title=title or "Recommendation",
             message=message or text,
             timestamp=datetime.utcnow(),
