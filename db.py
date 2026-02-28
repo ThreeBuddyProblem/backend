@@ -105,14 +105,17 @@ def insert_clinical_note(clinical_note: ClinicalNoteModel) -> ClinicalNoteModel:
         cursor = db_connection.cursor()
         cursor.execute(
             const.SQL_INSERT_CLINICAL_NOTE_RETURNING_ID,
-            (clinical_note.patientProfileId, clinical_note.timestamp, clinical_note.content),
+            (clinical_note.patientProfileId, clinical_note.timestamp, clinical_note.subjective, clinical_note.objective, clinical_note.assessment, clinical_note.plan),
         )
         clinical_note_id = cursor.fetchone()[0]
         get_db_connection().commit()
         inserted = ClinicalNoteModel(
             patientProfileId=clinical_note.patientProfileId,
             timestamp=clinical_note.timestamp,
-            content=clinical_note.content,
+            subjective=clinical_note.subjective,
+            objective=clinical_note.objective,
+            assessment=clinical_note.assessment,
+            plan=clinical_note.plan,
         )
         inserted.id = clinical_note_id
         return inserted
@@ -177,7 +180,7 @@ def update_clinical_note(id: int, clinical_note: ClinicalNoteModel) -> ClinicalN
         cursor = db_connection.cursor()
         cursor.execute(
             const.SQL_UPDATE_CLINICAL_NOTE,
-            (clinical_note.patientProfileId, clinical_note.timestamp, clinical_note.content, id),
+            (clinical_note.patientProfileId, clinical_note.timestamp, clinical_note.subjective, clinical_note.objective, clinical_note.assessment, clinical_note.plan, id),
         )
         if cursor.rowcount == 0:
             return None
@@ -395,12 +398,15 @@ def find_clinical_note_by_id(id: int) -> ClinicalNoteModel:
         cursor.execute(query, [id])
         row = cursor.fetchone()
 
-        clinical_note_id, patient_profile_id, timestamp, content = row
+        clinical_note_id, patient_profile_id, timestamp, subjective, objective, assessment, plan = row
 
     clinical_note = ClinicalNoteModel(
         patientProfileId=patient_profile_id,
         timestamp=timestamp,
-        content=content,
+        subjective=subjective,
+        objective=objective,
+        assessment=assessment,
+        plan=plan,
     )
     clinical_note.id = clinical_note_id
 
@@ -418,11 +424,14 @@ def find_clinical_notes_by_patient_profile_id(patient_id: int) -> list[ClinicalN
 
     clinical_notes = []
     for row in rows:
-        clinical_note_id, patientProfileId, timestamp, content = row
+        clinical_note_id, patientProfileId, timestamp, subjective, objective, assessment, plan = row
         clinical_note = ClinicalNoteModel(
             patientProfileId=patientProfileId,
             timestamp=timestamp,
-            content=content,
+            subjective=subjective,
+            objective=objective,
+            assessment=assessment,
+            plan=plan,
         )
         clinical_note.id = clinical_note_id
         clinical_notes.append(clinical_note)
@@ -439,11 +448,14 @@ def find_all_clinical_notes() -> list[ClinicalNoteModel]:
         rows = cursor.fetchall()
 
     for row in rows:
-        clinical_note_id, patientProfileId, timestamp, content = row
+        clinical_note_id, patientProfileId, timestamp, subjective, objective, assessment, plan = row
         clinical_note = ClinicalNoteModel(
             patientProfileId=patientProfileId,
             timestamp=timestamp,
-            content=content,
+            subjective=subjective,
+            objective=objective,
+            assessment=assessment,
+            plan=plan,
         )
         clinical_note.id = clinical_note_id
         clinical_notes.append(clinical_note)

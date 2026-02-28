@@ -163,7 +163,10 @@ class ClinicalNoteModel(BaseModel):
     id: Optional[int] = None
     patientProfileId: int
     timestamp: datetime
-    content: str
+    subjective: str
+    objective: str
+    assessment: str
+    plan: str
 
     class Config:
         json_encoders = {datetime: lambda v: v.isoformat()}
@@ -173,5 +176,8 @@ class ClinicalNoteModel(BaseModel):
             "id": self.id,
             "patientProfileId": self.patientProfileId,
             "timestamp": self.timestamp.isoformat(),
-            "content": self.content,
+            "subjective": self.subjective,
+            "objective": self.objective,
+            "assessment": self.assessment,
+            "plan": self.plan,
         }
