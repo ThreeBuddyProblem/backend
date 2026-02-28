@@ -157,3 +157,19 @@ class PatientProfileModel(BaseModel):
             "drugSensitivities": self.drugSensitivities,
             "dateOfBirth": self.dateOfBirth.isoformat() if self.dateOfBirth else None,
         }
+
+class ClinicalNote(BaseModel):
+    id: Optional[int] = None
+    patientProfileId: int
+    timestamp: datetime
+    content: str
+
+    class Config:
+        json_encoders = {datetime: lambda v: v.isoformat()}
+
+    def to_json_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "timestamp": self.timestamp.isoformat(),
+            "content": self.content,
+        }

@@ -239,6 +239,32 @@ def find_patient_profile_by_id(id: int) -> PatientProfileModel:
 
     return patient_profile
 
+def find_patient_profile_by_taj_number(taj_number: int) -> PatientProfileModel | None:
+    query = f"SELECT * FROM {const.SQL_PATIENTS_TABLE_NAME}" \
+    + " WHERE taj_number = %s;" 
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(query, [taj_number])
+        row = cursor.fetchone()
+
+        if row is None:
+            return None
+
+        patient_profile_id, name, languageCode, tajNumber, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
+
+    patient_profile = PatientProfileModel(
+        name=name,
+        tajNumber=tajNumber,
+        languageCode=languageCode,
+        chronicIllnesses=chronicIllnesses,
+        allergies=allergies,
+        drugSensitivities=drugSensitivities,
+        dateOfBirth=dateOfBirth,
+    )
+
+    patient_profile.id = patient_profile_id
+
+    return patient_profile
 
 def find_all_patient_profiles() -> list[PatientProfileModel]:
     patient_profiles = []

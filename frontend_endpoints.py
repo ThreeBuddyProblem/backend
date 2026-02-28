@@ -125,6 +125,14 @@ def get_profile(profile_id: int):
         return jsonify({"error": "Not found"}), 404
     return jsonify(profile.to_json_dict()), 200
 
+@app.route("/profiles/<taj_number>", methods=["GET"])
+def get_profile(taj_number: int):
+    """Return a single profile by taj number."""
+    profile = db.find_patient_profile_by_taj_number(taj_number)
+    if profile is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(profile.to_json_dict()), 200
+
 
 @app.route("/profiles/<int:profile_id>", methods=["PUT"])
 def update_profile(profile_id: int):
@@ -355,6 +363,14 @@ def get_recommendation(profile_id: int):
         return jsonify({"recommendation": llm_response, "alert_error": str(exc)}), 200
 
     return jsonify({"created_alert": alert.to_json_dict()}), 200
+
+@app.route("/profiles/<profile_id>/summary", methods=["GET"])
+def get_summary(profile_id: int):
+    """Generate a health summary from all diary entries using the LLM.
+
+    Optional query parameter: ?model=gemma3:4b
+    Returns the raw JSON returned by the LLM endpoint under the `summary` key.
+    """
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Backend server")
