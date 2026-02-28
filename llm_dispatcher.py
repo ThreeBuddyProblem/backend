@@ -237,7 +237,7 @@ def convert_soap(
         "##########",
         f"{example_output}"
         "##########",
-        "DO NOT use ANY syntax highlighting, only write an output matching the exact format outlined above!"
+        "DO NOT use ANY syntax highlighting, only write an output matching the exact format outlined above and don't change the original language!"
     ]
 
     prompt = "\n".join(lines)
