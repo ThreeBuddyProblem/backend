@@ -96,6 +96,7 @@ class HealthAlertModel(BaseModel):
     def to_json_dict(self) -> dict:
         return {
             "id": self.id,
+            "patientProfileId": self.patientProfileId,
             "title": self.title,
             "message": self.message,
             "timestamp": self.timestamp.isoformat(),

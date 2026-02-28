@@ -10,8 +10,8 @@ import argparse
 from dotenv import load_dotenv
 
 import db
-from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, AlertSeverity
-from llm_dispatcher import generate_recommendation_from_entries
+from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel
+from llm_dispatcher import generate_recommendations
 
 
 app = Flask(__name__)
@@ -267,102 +267,54 @@ def transcribe_audio():
 
 @app.route("/profiles/<profile_id>/recommendation", methods=["GET"])
 def get_recommendation(profile_id: int):
-    """Generate a recommendation from all diary entries using the LLM.
+    """Generate recommendations from recent diary entries using the LLM.
+
+    The LLM returns a complete set of recommendations grouped by symptom/category.
+    All existing alerts for the patient are replaced with the new set.
 
     Optional query parameter: ?model=gemma3:4b
-    Returns the raw JSON returned by the LLM endpoint under the `recommendation` key.
     """
     profile_id = int(profile_id)
     model = request.args.get("model", "gemma3:4b")
+
+    # Fetch entries from DB for this profile, filter to last 30 days
+    all_entries = db.find_diary_entries_by_patient_profile_id(profile_id)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    recent_entries = []
+    for entry in all_entries:
+        ts = entry.timestamp
+        if ts is None:
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        if ts >= cutoff:
+            recent_entries.append(entry.to_json_dict())
+
+    if not recent_entries:
+        return jsonify({"error": "no_recent_entries", "details": "No diary entries in the last 30 days."}), 400
+
     try:
-        def _extract_text_from_llm_response(resp):
-            if resp is None:
-                return ""
-            if isinstance(resp, str):
-                return resp
-            if isinstance(resp, dict):
-                for k in ("text", "output", "result", "completion", "response", "content"):
-                    v = resp.get(k)
-                    if isinstance(v, str) and v.strip():
-                        return v
-                choices = resp.get("choices") or resp.get("outputs")
-                if isinstance(choices, list) and len(choices) > 0:
-                    first = choices[0]
-                    if isinstance(first, dict):
-                        for k in ("text", "message", "content"):
-                            v = first.get(k)
-                            if isinstance(v, str) and v.strip():
-                                return v
-                return str(resp)
-            return str(resp)
-
-        # Fetch entries from DB for this profile, filter to last 30 days
-        all_entries = db.find_diary_entries_by_patient_profile_id(profile_id)
-        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
-        recent_entries = []
-        for entry in all_entries:
-            ts = entry.timestamp
-            if ts is None:
-                continue
-            if ts.tzinfo is None:
-                ts = ts.replace(tzinfo=timezone.utc)
-            if ts >= cutoff:
-                recent_entries.append(entry.to_json_dict())
-
-        if not recent_entries:
-            return jsonify({"error": "no_recent_entries", "details": "No diary entries in the last 30 days."}), 400
-
-        llm_response = generate_recommendation_from_entries(recent_entries, model=model)
+        recommendations = generate_recommendations(recent_entries, model=model)
     except Exception as exc:
-        # Return a 502 to indicate upstream service failure
         return jsonify({"error": "llm_error", "details": str(exc)}), 502
 
-    # Extract human text from LLM response and build a HealthAlert
-    text = _extract_text_from_llm_response(llm_response)
-    # Parse: first word => severity, next line => title, rest => message
-    lines = [ln for ln in text.splitlines() if ln is not None]
-    severity_token = ""
-    title = ""
-    message = ""
-    if len(lines) >= 1 and lines[0].strip():
-        first_line = lines[0].strip()
-        parts = first_line.split()
-        if parts:
-            # take only alphabetic chars from token
-            token = ''.join(ch for ch in parts[0] if ch.isalpha()).lower()
-            try:
-                severity = AlertSeverity(token)
-            except Exception:
-                severity = AlertSeverity.info
-            severity_token = token
-    else:
-        severity = AlertSeverity.info
+    # Replace all existing alerts for this patient with the new set
+    db.delete_health_alerts_by_patient_id(profile_id)
 
-    if len(lines) >= 2:
-        title = lines[1].strip()
-
-    if len(lines) >= 3:
-        message = "\n".join(lines[2:]).strip()
-    else:
-        # if there was only one or two lines, use the remaining text as message
-        remaining = "\n".join(lines[1:]).strip() if len(lines) > 1 else ""
-        message = remaining or text
-
-    try:
+    created = []
+    for rec in recommendations:
         alert = HealthAlertModel(
             patientProfileId=profile_id,
-            title=title or "Recommendation",
-            message=message or text,
+            title=rec.get("title", "Recommendation"),
+            message=rec.get("message", ""),
             timestamp=datetime.utcnow(),
             isRead=False,
-            severity=severity,
+            severity=rec.get("severity", 0),
         )
         alert = db.insert_health_alert(alert)
-    except Exception as exc:
-        # If alert creation fails, log and continue returning the recommendation
-        return jsonify({"recommendation": llm_response, "alert_error": str(exc)}), 200
+        created.append(alert.to_json_dict())
 
-    return jsonify({"created_alert": alert.to_json_dict()}), 200
+    return jsonify({"recommendations": created}), 200
 
 @app.route("/profiles/<profile_id>/summary", methods=["GET"])
 def get_summary(profile_id: int):

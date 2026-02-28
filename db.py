@@ -162,6 +162,13 @@ def delete_health_alert(id: int) -> bool:
         return cursor.rowcount > 0
 
 
+def delete_health_alerts_by_patient_id(patient_id: int) -> int:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(const.SQL_DELETE_HEALTH_ALERTS_BY_PATIENT_ID, (patient_id,))
+        return cursor.rowcount
+
+
 def find_diary_entries_by_patient_profile_id(patient_id: int) -> list[DiaryEntryModel]:
     query = f"SELECT * FROM {const.SQL_DIARY_ENTRIES_TABLE_NAME}" \
         + " WHERE patient_profile_id = %s;"
