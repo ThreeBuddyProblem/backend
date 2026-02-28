@@ -47,8 +47,8 @@ def create_entry():
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
-    DIARY_STORE[entry.id] = entry.to_json_dict()
-    return jsonify(DIARY_STORE[entry.id]), 201
+    entry = db.insert_diary_entry(entry)
+    return jsonify(entry.id), 201
 
 
 @app.route("/entries/<entry_id>", methods=["GET"])
@@ -113,8 +113,8 @@ def create_profile():
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
-    PROFILE_STORE[profile.id] = profile.to_json_dict()
-    return jsonify(PROFILE_STORE[profile.id]), 201
+    profile = db.insert_patient_profile(profile)
+    return jsonify(profile.id), 201
 
 
 @app.route("/profiles", methods=["GET"])
@@ -175,8 +175,8 @@ def create_alert():
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
-    ALERT_STORE[alert.id] = alert.to_json_dict()
-    return jsonify(ALERT_STORE[alert.id]), 201
+    alert = db.insert_health_alert(alert)
+    return jsonify(alert.id), 201
 
 
 @app.route("/alerts", methods=["GET"])
