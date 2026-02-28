@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 import os
 import tempfile
 import argparse
+from dotenv import load_dotenv
 
 import db
 from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, AlertSeverity
@@ -391,4 +392,6 @@ def parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     # Useful defaults for local development. In production, run behind a WSGI server.
     args = parse_args()
+    load_dotenv()
+    db.init_db()
     app.run(host="0.0.0.0", port=args.port, debug=True)
