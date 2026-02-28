@@ -305,7 +305,7 @@ def get_recommendation(profile_id: int):
             patientProfileId=profile_id,
             title=rec.get("title", "Recommendation"),
             message=rec.get("message", ""),
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
             isRead=False,
             severity=rec.get("severity", 0),
         )
