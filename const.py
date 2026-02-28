@@ -101,7 +101,7 @@ SQL_UPDATE_HEALTH_ALERT = f"""
 UPDATE {SQL_HEALTH_ALERTS_TABLE_NAME}
 SET patient_profile_id = %s, title = %s, message = %s, timestamp = %s,
     is_read = %s, severity = %s
-WHERE id = %s AND patient_profile_id;
+WHERE id = %s AND patient_profile_id = %s;
 """
 
 SQL_DELETE_HEALTH_ALERT = f"""
