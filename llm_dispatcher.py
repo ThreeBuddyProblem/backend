@@ -45,10 +45,13 @@ Return ONLY a JSON array (no markdown, no explanation). Each element must be:
 Severity levels: 0 = informational, 1 = warning, 2 = urgent.
 
 Rules:
-- Group related symptoms/complaints together into one recommendation.
-- Do NOT create one recommendation per diary entry.
-- Do NOT lump everything into a single recommendation either.
+- Group related symptoms/complaints together into one recommendation, so look for relations between entries.
+- Do NOT necessarily create one recommendation per diary entry, only if needed.
+- Do NOT necessarily lump everything into a single recommendation either, only if needed.
 - Be concise yet precise.
+- Give actual useful recommendations, not generic advice.
+- Try to set severity based on the possible health impact on the patient.
+- "If the new entries are identical in content to the previous entries, do not create or modify recommendations.
 - Return valid JSON only."""
 
 
