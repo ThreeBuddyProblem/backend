@@ -1,4 +1,4 @@
-from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel
+from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, ClinicalNoteModel
 import const
 from psycopg2.pool import SimpleConnectionPool
 
@@ -100,6 +100,24 @@ def insert_health_alert(health_alert: HealthAlertModel) -> HealthAlertModel:
         return inserted
 
 
+    def insert_clinical_note(clinical_note: ClinicalNoteModel) -> ClinicalNoteModel:
+        with get_db_connection() as db_connection:
+            cursor = db_connection.cursor()
+            cursor.execute(
+                const.SQL_INSERT_CLINICAL_NOTE_RETURNING_ID,
+                (clinical_note.patientProfileId, clinical_note.timestamp, clinical_note.content),
+            )
+            clinical_note_id = cursor.fetchone()[0]
+            get_db_connection().commit()
+            inserted = ClinicalNoteModel(
+                patientProfileId=clinical_note.patientProfileId,
+                timestamp=clinical_note.timestamp,
+                content=clinical_note.content,
+            )
+            inserted.id = clinical_note_id
+            return inserted
+
+
 def update_diary_entry(id: int, diary_entry: DiaryEntryModel) -> DiaryEntryModel | None:
     with get_db_connection() as db_connection:
         cursor = db_connection.cursor()
@@ -155,11 +173,30 @@ def update_health_alert(id: int, health_alert: HealthAlertModel) -> HealthAlertM
     return find_health_alert_by_id(id)
 
 
+def update_clinical_note(id: int, clinical_note: ClinicalNoteModel) -> ClinicalNoteModel | None:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(
+            const.SQL_UPDATE_CLINICAL_NOTE,
+            (clinical_note.patientProfileId, clinical_note.timestamp, clinical_note.content, id),
+        )
+        if cursor.rowcount == 0:
+            return None
+    return find_clinical_note_by_id(id)
+
+
 def delete_health_alert(id: int) -> bool:
     with get_db_connection() as db_connection:
         cursor = db_connection.cursor()
         cursor.execute(const.SQL_DELETE_HEALTH_ALERT, (id,))
         return cursor.rowcount > 0
+
+
+    def delete_clinical_note(id: int) -> bool:
+        with get_db_connection() as db_connection:
+            cursor = db_connection.cursor()
+            cursor.execute(const.SQL_DELETE_CLINICAL_NOTE, (id,))
+            return cursor.rowcount > 0
 
 
 def delete_health_alerts_by_patient_id(patient_id: int) -> int:
@@ -349,3 +386,67 @@ def find_all_health_alerts() -> list[HealthAlertModel]:
         health_alerts.append(health_alert)
 
     return health_alerts
+
+
+def find_clinical_note_by_id(id: int) -> ClinicalNoteModel:
+    query = f"SELECT * FROM {const.SQL_CLINICAL_NOTES_TABLE_NAME}" \
+    + " WHERE id = %s;"
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(query, [id])
+        row = cursor.fetchone()
+
+        clinical_note_id, patient_profile_id, timestamp, content = row
+
+    clinical_note = ClinicalNoteModel(
+        patientProfileId=patient_profile_id,
+        timestamp=timestamp,
+        content=content,
+    )
+    clinical_note.id = clinical_note_id
+
+    return clinical_note
+
+
+def find_clinical_notes_by_patient_profile_id(patient_id: int) -> list[ClinicalNoteModel]:
+    query = f"SELECT * FROM {const.SQL_CLINICAL_NOTES_TABLE_NAME}" \
+        + " WHERE patient_profile_id = %s;"
+
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(query, [patient_id])
+        rows = cursor.fetchall()
+
+    clinical_notes = []
+    for row in rows:
+        clinical_note_id, patientProfileId, timestamp, content = row
+        clinical_note = ClinicalNoteModel(
+            patientProfileId=patientProfileId,
+            timestamp=timestamp,
+            content=content,
+        )
+        clinical_note.id = clinical_note_id
+        clinical_notes.append(clinical_note)
+
+    return clinical_notes
+
+
+def find_all_clinical_notes() -> list[ClinicalNoteModel]:
+    clinical_notes = []
+    query = f"SELECT * FROM {const.SQL_CLINICAL_NOTES_TABLE_NAME}"
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+    for row in rows:
+        clinical_note_id, patientProfileId, timestamp, content = row
+        clinical_note = ClinicalNoteModel(
+            patientProfileId=patientProfileId,
+            timestamp=timestamp,
+            content=content,
+        )
+        clinical_note.id = clinical_note_id
+        clinical_notes.append(clinical_note)
+
+    return clinical_notes

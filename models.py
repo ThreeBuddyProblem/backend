@@ -159,7 +159,7 @@ class PatientProfileModel(BaseModel):
             "dateOfBirth": self.dateOfBirth.isoformat() if self.dateOfBirth else None,
         }
 
-class ClinicalNote(BaseModel):
+class ClinicalNoteModel(BaseModel):
     id: Optional[int] = None
     patientProfileId: int
     timestamp: datetime
@@ -171,6 +171,7 @@ class ClinicalNote(BaseModel):
     def to_json_dict(self) -> dict:
         return {
             "id": self.id,
+            "patientProfileId": self.patientProfileId,
             "timestamp": self.timestamp.isoformat(),
             "content": self.content,
         }

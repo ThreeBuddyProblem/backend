@@ -10,8 +10,8 @@ import argparse
 from dotenv import load_dotenv
 
 import db
-from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel
-from llm_dispatcher import generate_recommendations
+from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, ClinicalNoteModel
+from llm_dispatcher import generate_recommendations, generate_summary
 
 
 app = Flask(__name__)
@@ -225,6 +225,73 @@ def delete_alert(alert_id: int):
     return "", 204
 
 
+## Clinical notes endpoints ################################
+
+
+@app.route("/clinical_notes", methods=["POST"])
+def create_clinical_note():
+    """Create a new clinical note. Validates payload against ClinicalNoteModel."""
+    if not request.is_json:
+        return jsonify({"error": "Expected JSON body"}), 400
+
+    payload = request.get_json()
+    try:
+        note = ClinicalNoteModel.parse_obj(payload)
+    except ValidationError as exc:
+        return jsonify({"error": "validation_error", "details": exc.errors()}), 400
+
+    note = db.insert_clinical_note(note)
+    return jsonify(note.id), 201
+
+
+
+@app.route("/profiles/<profile_id>/clinical_notes", methods=["GET"])
+def get_profile_clinical_notes(profile_id: int):
+    """Return all clinical notes for a patient profile."""
+    notes = db.find_clinical_notes_by_patient_profile_id(profile_id)
+    if notes is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify([n.to_json_dict() for n in notes]), 200
+
+
+@app.route("/clinical_notes/<note_id>", methods=["GET"])
+def get_clinical_note(note_id: int):
+    """Return a single clinical note by id."""
+    note = db.find_clinical_note_by_id(note_id)
+    if note is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify(note.to_json_dict()), 200
+
+
+@app.route("/clinical_notes/<int:note_id>", methods=["PUT"])
+def update_clinical_note(note_id: int):
+    """Update an existing clinical note. Merges payload into stored note and re-validates."""
+    existing = db.find_clinical_note_by_id(note_id)
+    if existing is None:
+        return jsonify({"error": "Not found"}), 404
+
+    if not request.is_json:
+        return jsonify({"error": "Expected JSON body"}), 400
+
+    payload = request.get_json()
+    merged = {**existing.to_json_dict(), **payload}
+    try:
+        note = ClinicalNoteModel.parse_obj(merged)
+    except ValidationError as exc:
+        return jsonify({"error": "validation_error", "details": exc.errors()}), 400
+
+    updated = db.update_clinical_note(note_id, note)
+    return jsonify(updated.to_json_dict()), 200
+
+
+@app.route("/clinical_notes/<int:note_id>", methods=["DELETE"])
+def delete_clinical_note(note_id: int):
+    """Delete a clinical note."""
+    if not db.delete_clinical_note(note_id):
+        return jsonify({"error": "Not found"}), 404
+    return "", 204
+
+
 ## Transcription endpoint ################################
 
 @app.route("/transcribe", methods=["POST"])
@@ -323,6 +390,32 @@ def get_summary(profile_id: int):
     Optional query parameter: ?model=gemma3:4b
     Returns the raw JSON returned by the LLM endpoint under the `summary` key.
     """
+
+    profile_id = int(profile_id)
+    model = request.args.get("model", "gemma3:4b")
+
+    # Fetch entries from DB for this profile, filter to last 30 days
+    all_entries = db.find_diary_entries_by_patient_profile_id(profile_id)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    recent_entries = []
+    for entry in all_entries:
+        ts = entry.timestamp
+        if ts is None:
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        if ts >= cutoff:
+            recent_entries.append(entry.to_json_dict())
+
+    if not recent_entries:
+        return jsonify({"error": "no_recent_entries", "details": "No diary entries in the last 30 days."}), 400
+
+    try:
+        summary = generate_summary(recent_entries, model=model)
+    except Exception as exc:
+        return jsonify({"error": "llm_error", "details": str(exc)}), 502
+
+    return jsonify({"summary": summary}), 200
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Backend server")
