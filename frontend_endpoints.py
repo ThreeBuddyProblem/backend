@@ -2,7 +2,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from pydantic import ValidationError
-from typing import Dict
+
 from datetime import datetime, timedelta, timezone
 import os
 import tempfile
@@ -22,11 +22,6 @@ CORS(app)
 # initialize any heavy model locally.
 
 import requests
-
-# Simple in-memory data stores (for demo/dev). Separate stores for entries and profiles.
-DIARY_STORE: Dict[str, dict] = {}
-PROFILE_STORE: Dict[str, dict] = {}
-ALERT_STORE: Dict[str, dict] = {}
 
 
 @app.route("/health", methods=["GET"])
@@ -69,33 +64,32 @@ def get_patient_profile_entries(patient_profile_id: int):
     return jsonify([e.to_json_dict() for e in entries]), 200
 
 
-@app.route("/entries/<entry_id>", methods=["PUT"])
-def update_entry(entry_id: str):
+@app.route("/entries/<int:entry_id>", methods=["PUT"])
+def update_entry(entry_id: int):
     """Update an existing diary entry. Merges payload into stored entry and re-validates."""
-    if entry_id not in DIARY_STORE:
+    existing = db.find_diary_entry_by_id(entry_id)
+    if existing is None:
         return jsonify({"error": "Not found"}), 404
 
     if not request.is_json:
         return jsonify({"error": "Expected JSON body"}), 400
 
     payload = request.get_json()
-    # Merge existing stored dict with incoming payload (incoming keys override)
-    merged = {**DIARY_STORE[entry_id], **payload}
+    merged = {**existing.to_json_dict(), **payload}
     try:
         entry = DiaryEntryModel.parse_obj(merged)
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
-    DIARY_STORE[entry.id] = entry.to_json_dict()
-    return jsonify(DIARY_STORE[entry.id]), 200
+    updated = db.update_diary_entry(entry_id, entry)
+    return jsonify(updated.to_json_dict()), 200
 
 
-@app.route("/entries/<entry_id>", methods=["DELETE"])
-def delete_entry(entry_id: str):
+@app.route("/entries/<int:entry_id>", methods=["DELETE"])
+def delete_entry(entry_id: int):
     """Delete a diary entry."""
-    if entry_id not in DIARY_STORE:
+    if not db.delete_diary_entry(entry_id):
         return jsonify({"error": "Not found"}), 404
-    del DIARY_STORE[entry_id]
     return "", 204
 
 
@@ -132,32 +126,32 @@ def get_profile(profile_id: int):
     return jsonify(profile.to_json_dict()), 200
 
 
-@app.route("/profiles/<profile_id>", methods=["PUT"])
-def update_profile(profile_id: str):
+@app.route("/profiles/<int:profile_id>", methods=["PUT"])
+def update_profile(profile_id: int):
     """Update an existing patient profile. Merges payload into stored profile and re-validates."""
-    if profile_id not in PROFILE_STORE:
+    existing = db.find_patient_profile_by_id(profile_id)
+    if existing is None:
         return jsonify({"error": "Not found"}), 404
 
     if not request.is_json:
         return jsonify({"error": "Expected JSON body"}), 400
 
     payload = request.get_json()
-    merged = {**PROFILE_STORE[profile_id], **payload}
+    merged = {**existing.to_json_dict(), **payload}
     try:
         profile = PatientProfileModel.parse_obj(merged)
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
-    PROFILE_STORE[profile.id] = profile.to_json_dict()
-    return jsonify(PROFILE_STORE[profile.id]), 200
+    updated = db.update_patient_profile(profile_id, profile)
+    return jsonify(updated.to_json_dict()), 200
 
 
-@app.route("/profiles/<profile_id>", methods=["DELETE"])
-def delete_profile(profile_id: str):
+@app.route("/profiles/<int:profile_id>", methods=["DELETE"])
+def delete_profile(profile_id: int):
     """Delete a patient profile."""
-    if profile_id not in PROFILE_STORE:
+    if not db.delete_patient_profile(profile_id):
         return jsonify({"error": "Not found"}), 404
-    del PROFILE_STORE[profile_id]
     return "", 204
 
 
@@ -194,32 +188,32 @@ def get_alert(alert_id: int):
     return jsonify(health_alert.to_json_dict()), 200
 
 
-@app.route("/alerts/<alert_id>", methods=["PUT"])
-def update_alert(alert_id: str):
+@app.route("/alerts/<int:alert_id>", methods=["PUT"])
+def update_alert(alert_id: int):
     """Update an existing alert. Merges payload into stored alert and re-validates."""
-    if alert_id not in ALERT_STORE:
+    existing = db.find_health_alert_by_id(alert_id)
+    if existing is None:
         return jsonify({"error": "Not found"}), 404
 
     if not request.is_json:
         return jsonify({"error": "Expected JSON body"}), 400
 
     payload = request.get_json()
-    merged = {**ALERT_STORE[alert_id], **payload}
+    merged = {**existing.to_json_dict(), **payload}
     try:
         alert = HealthAlertModel.parse_obj(merged)
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
-    ALERT_STORE[alert.id] = alert.to_json_dict()
-    return jsonify(ALERT_STORE[alert.id]), 200
+    updated = db.update_health_alert(alert_id, alert)
+    return jsonify(updated.to_json_dict()), 200
 
 
-@app.route("/alerts/<alert_id>", methods=["DELETE"])
-def delete_alert(alert_id: str):
+@app.route("/alerts/<int:alert_id>", methods=["DELETE"])
+def delete_alert(alert_id: int):
     """Delete a health alert."""
-    if alert_id not in ALERT_STORE:
+    if not db.delete_health_alert(alert_id):
         return jsonify({"error": "Not found"}), 404
-    del ALERT_STORE[alert_id]
     return "", 204
 
 
