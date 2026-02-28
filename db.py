@@ -161,7 +161,7 @@ def find_patient_profile_by_id(id: int) -> PatientProfileModel:
         cursor.execute(query, [id])
         row = cursor.fetchone()
 
-        patient_profile_id, name, tajNumber, languageCode, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
+        patient_profile_id, name, languageCode, tajNumber, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
 
     patient_profile = PatientProfileModel(
         name=name,
@@ -188,7 +188,7 @@ def find_all_patient_profiles() -> list[PatientProfileModel]:
 
     for row in rows:
 
-        patient_profile_id, name, tajNumber, languageCode, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
+        patient_profile_id, name, languageCode, tajNumber, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
 
         patient_profile = PatientProfileModel(
             name=name,
