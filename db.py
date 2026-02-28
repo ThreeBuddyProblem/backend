@@ -100,6 +100,68 @@ def insert_health_alert(health_alert: HealthAlertModel) -> HealthAlertModel:
         return inserted
 
 
+def update_diary_entry(id: int, diary_entry: DiaryEntryModel) -> DiaryEntryModel | None:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(
+            const.SQL_UPDATE_DIARY_ENTRY,
+            (diary_entry.timestamp, diary_entry.patientProfileId, diary_entry.moodLevel,
+             diary_entry.emotions, diary_entry.healthComplaints, diary_entry.foodIntake,
+             diary_entry.notes, diary_entry.suggestion, id)
+        )
+        if cursor.rowcount == 0:
+            return None
+    return find_diary_entry_by_id(id)
+
+
+def delete_diary_entry(id: int) -> bool:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(const.SQL_DELETE_DIARY_ENTRY, (id,))
+        return cursor.rowcount > 0
+
+
+def update_patient_profile(id: int, patient: PatientProfileModel) -> PatientProfileModel | None:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(
+            const.SQL_UPDATE_PATIENT,
+            (patient.name, patient.languageCode, patient.tajNumber,
+             patient.chronicIllnesses, patient.allergies, patient.drugSensitivities,
+             patient.dateOfBirth, id)
+        )
+        if cursor.rowcount == 0:
+            return None
+    return find_patient_profile_by_id(id)
+
+
+def delete_patient_profile(id: int) -> bool:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(const.SQL_DELETE_PATIENT, (id,))
+        return cursor.rowcount > 0
+
+
+def update_health_alert(id: int, health_alert: HealthAlertModel) -> HealthAlertModel | None:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(
+            const.SQL_UPDATE_HEALTH_ALERT,
+            (health_alert.patientProfileId, health_alert.title, health_alert.message,
+             health_alert.timestamp, health_alert.isRead, health_alert.severity, id)
+        )
+        if cursor.rowcount == 0:
+            return None
+    return find_health_alert_by_id(id)
+
+
+def delete_health_alert(id: int) -> bool:
+    with get_db_connection() as db_connection:
+        cursor = db_connection.cursor()
+        cursor.execute(const.SQL_DELETE_HEALTH_ALERT, (id,))
+        return cursor.rowcount > 0
+
+
 def find_diary_entries_by_patient_profile_id(patient_id: int) -> list[DiaryEntryModel]:
     query = f"SELECT * FROM {const.SQL_DIARY_ENTRIES_TABLE_NAME}" \
         + " WHERE patient_profile_id = %s;"

@@ -74,3 +74,36 @@ INSERT INTO {SQL_HEALTH_ALERTS_TABLE_NAME} (patient_profile_id, title, message, 
 VALUES (%s, %s, %s, %s, %s, %s)
 RETURNING id;
 """
+
+SQL_UPDATE_DIARY_ENTRY = f"""
+UPDATE {SQL_DIARY_ENTRIES_TABLE_NAME}
+SET timestamp = %s, patient_profile_id = %s, mood_level = %s, emotions = %s,
+    health_complaints = %s, food_intake = %s, notes = %s, suggestions = %s
+WHERE id = %s;
+"""
+
+SQL_DELETE_DIARY_ENTRY = f"""
+DELETE FROM {SQL_DIARY_ENTRIES_TABLE_NAME} WHERE id = %s;
+"""
+
+SQL_UPDATE_PATIENT = f"""
+UPDATE {SQL_PATIENTS_TABLE_NAME}
+SET name = %s, language_code = %s, taj_number = %s, chronic_illnesses = %s,
+    allergies = %s, drug_sensitivities = %s, date_of_birth = %s
+WHERE id = %s;
+"""
+
+SQL_DELETE_PATIENT = f"""
+DELETE FROM {SQL_PATIENTS_TABLE_NAME} WHERE id = %s;
+"""
+
+SQL_UPDATE_HEALTH_ALERT = f"""
+UPDATE {SQL_HEALTH_ALERTS_TABLE_NAME}
+SET patient_profile_id = %s, title = %s, message = %s, timestamp = %s,
+    is_read = %s, severity = %s
+WHERE id = %s;
+"""
+
+SQL_DELETE_HEALTH_ALERT = f"""
+DELETE FROM {SQL_HEALTH_ALERTS_TABLE_NAME} WHERE id = %s;
+"""
