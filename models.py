@@ -31,7 +31,7 @@ class MoodLevel(IntEnum):
 
 
 class DiaryEntryModel(BaseModel):
-    id: int
+    id: Optional[int] = None
     patientProfileId: int
     timestamp: datetime
     moodLevel: MoodLevel
@@ -40,16 +40,6 @@ class DiaryEntryModel(BaseModel):
     foodIntake: Optional[str] = None
     notes: Optional[str] = None
     suggestion: Optional[str] = None
-
-    def __init__(self, patientProfileId, timestamp, moodLevel, emotions, healthComplaints=None, foodIntake=None, notes=None, suggestion=None):
-        self.patientProfileId = patientProfileId
-        self.timestamp = timestamp
-        self.moodLevel = moodLevel
-        self.emotions = emotions
-        self.healthComplaints = healthComplaints
-        self.foodIntake = foodIntake
-        self.notes = notes
-        self.suggestion = suggestion
 
 
     @validator("emotions", pre=True, always=True)
@@ -91,22 +81,13 @@ class AlertSeverity(str, Enum):
 
 
 class HealthAlertModel(BaseModel):
-    id: int
+    id: Optional[int] = None
     patientProfileId: int
     title: str
     message: str
     timestamp: datetime
     isRead: bool = False
     severity: AlertSeverity = AlertSeverity.info
-
-    def __init__(self, patientProfileId, title, message, timestamp, isRead, severity):
-        self.patientProfileId = patientProfileId
-        self.title = title
-        self.message = message
-        self.timestamp = timestamp
-        self.isRead = isRead
-        self.severity = severity
-
 
     class Config:
         use_enum_values = True
@@ -131,7 +112,7 @@ class PatientProfileModel(BaseModel):
     JSON keys are kept compatible with the Dart `toJson()` (e.g. `languageCode`).
     """
 
-    id: int
+    id: Optional[int] = None
     name: str = ""
     tajNumber: Optional[str] = None
     languageCode: str = Field(default="en")
@@ -139,15 +120,6 @@ class PatientProfileModel(BaseModel):
     allergies: List[str] = Field(default_factory=list)
     drugSensitivities: List[str] = Field(default_factory=list)
     dateOfBirth: Optional[datetime] = None
-
-    def __init__(self, name , tajNumber , languageCode , chronicIllnesses , allergies , drugSensitivities , dateOfBirth):
-        self.name = name
-        self.tajNumber = tajNumber
-        self.languageCode = languageCode
-        self.chronicIllnesses = chronicIllnesses
-        self.allergies = allergies
-        self.drugSensitivities = drugSensitivities
-        self.dateOfBirth = dateOfBirth
 
 
     @validator("chronicIllnesses", "allergies", "drugSensitivities", pre=True, always=True)
