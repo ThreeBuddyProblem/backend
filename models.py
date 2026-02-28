@@ -32,7 +32,7 @@ class MoodLevel(IntEnum):
 
 class DiaryEntryModel(BaseModel):
     id: int
-    patientProfileId: str
+    patientProfileId: int
     timestamp: datetime
     moodLevel: MoodLevel
     emotions: List[str] = Field(default_factory=list)
@@ -41,13 +41,13 @@ class DiaryEntryModel(BaseModel):
     notes: Optional[str] = None
     suggestion: Optional[str] = None
 
-    def __init__(self, patient_profile_id, timestamp, mood_level, emotions, health_complaints, food_intake, notes, suggestion):
-        self.patientProfileId = patient_profile_id
+    def __init__(self, patientProfileId, timestamp, moodLevel, emotions, healthComplaints=None, foodIntake=None, notes=None, suggestion=None):
+        self.patientProfileId = patientProfileId
         self.timestamp = timestamp
-        self.moodLevel = mood_level
+        self.moodLevel = moodLevel
         self.emotions = emotions
-        self.healthComplaints = health_complaints
-        self.foodIntake = food_intake
+        self.healthComplaints = healthComplaints
+        self.foodIntake = foodIntake
         self.notes = notes
         self.suggestion = suggestion
 
@@ -99,12 +99,12 @@ class HealthAlertModel(BaseModel):
     isRead: bool = False
     severity: AlertSeverity = AlertSeverity.info
 
-    def __init__(self, patient_profile_id, title, message, timestamp, is_read, severity):
-        self.patientProfileId = patient_profile_id
+    def __init__(self, patientProfileId, title, message, timestamp, isRead, severity):
+        self.patientProfileId = patientProfileId
         self.title = title
         self.message = message
         self.timestamp = timestamp
-        self.isRead = is_read
+        self.isRead = isRead
         self.severity = severity
 
 
@@ -140,14 +140,14 @@ class PatientProfileModel(BaseModel):
     drugSensitivities: List[str] = Field(default_factory=list)
     dateOfBirth: Optional[datetime] = None
 
-    def __init__(self, name , taj_number , language_code , chronic_illnesses , allergies , drug_sensitivities , date_of_birth):
+    def __init__(self, name , tajNumber , languageCode , chronicIllnesses , allergies , drugSensitivities , dateOfBirth):
         self.name = name
-        self.tajNumber = taj_number
-        self.languageCode = language_code
-        self.chronicIllnesses = chronic_illnesses
+        self.tajNumber = tajNumber
+        self.languageCode = languageCode
+        self.chronicIllnesses = chronicIllnesses
         self.allergies = allergies
-        self.drugSensitivities = drug_sensitivities
-        self.dateOfBirth = date_of_birth
+        self.drugSensitivities = drugSensitivities
+        self.dateOfBirth = dateOfBirth
 
 
     @validator("chronicIllnesses", "allergies", "drugSensitivities", pre=True, always=True)
