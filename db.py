@@ -62,7 +62,7 @@ def insert_patient_profile(patient: PatientProfileModel) -> PatientProfileModel:
         cursor = db_connection.cursor()
         cursor.execute(
             const.SQL_INSERT_PATIENT_RETURNING_ID,
-            (patient.name, patient.tajNumber, patient.languageCode, patient.chronicIllnesses, patient.allergies, patient.drugSensitivities, patient.dateOfBirth)
+            (patient.name, patient.languageCode, patient.tajNumber, patient.chronicIllnesses, patient.allergies, patient.drugSensitivities, patient.dateOfBirth)
         )
         patient_profile_id = cursor.fetchone()[0]
         get_db_connection().commit()
