@@ -371,12 +371,12 @@ def get_recommendation(patient_profile_id: int):
 
     try:
         alert = HealthAlertModel(
-            patient_profile_id,
-            title or "Recommendation",
-            message or text,
-            datetime.utcnow(),
-            False,
-            severity,
+            patientProfileId=patient_profile_id,
+            title=title or "Recommendation",
+            message=message or text,
+            timestamp=datetime.utcnow(),
+            isRead=False,
+            severity=severity,
         )
         alert = db.insert_health_alert(alert)
     except Exception as exc:

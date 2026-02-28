@@ -44,14 +44,14 @@ def insert_diary_entry(diary_entry: DiaryEntryModel) -> DiaryEntryModel:
         diary_entry_id = cursor.fetchone()[0]
         get_db_connection().commit()
         inserted = DiaryEntryModel(
-            diary_entry.timestamp,
-            diary_entry.patientProfileId,
-            diary_entry.moodLevel,
-            diary_entry.emotions,
-            diary_entry.healthComplaints,
-            diary_entry.foodIntake,
-            diary_entry.notes,
-            diary_entry.suggestion
+            timestamp=diary_entry.timestamp,
+            patientProfileId=diary_entry.patientProfileId,
+            moodLevel=diary_entry.moodLevel,
+            emotions=diary_entry.emotions,
+            healthComplaints=diary_entry.healthComplaints,
+            foodIntake=diary_entry.foodIntake,
+            notes=diary_entry.notes,
+            suggestion=diary_entry.suggestion
         )
         inserted.id = diary_entry_id
         return inserted
@@ -67,13 +67,13 @@ def insert_patient_profile(patient: PatientProfileModel) -> PatientProfileModel:
         patient_profile_id = cursor.fetchone()[0]
         get_db_connection().commit()
         inserted = PatientProfileModel(
-            patient.name,
-            patient.tajNumber,
-            patient.languageCode,
-            patient.chronicIllnesses,
-            patient.allergies,
-            patient.drugSensitivities,
-            patient.dateOfBirth,
+            name=patient.name,
+            tajNumber=patient.tajNumber,
+            languageCode=patient.languageCode,
+            chronicIllnesses=patient.chronicIllnesses,
+            allergies=patient.allergies,
+            drugSensitivities=patient.drugSensitivities,
+            dateOfBirth=patient.dateOfBirth,
         )
         inserted.id = patient_profile_id
         return inserted
@@ -89,12 +89,12 @@ def insert_health_alert(health_alert: HealthAlertModel) -> HealthAlertModel:
         health_alert_id = cursor.fetchone()[0]
         get_db_connection().commit()
         inserted = HealthAlertModel(
-            health_alert.patientProfileId,
-            health_alert.title,
-            health_alert.message,
-            health_alert.timestamp,
-            health_alert.isRead,
-            health_alert.severity,
+            patientProfileId=health_alert.patientProfileId,
+            title=health_alert.title,
+            message=health_alert.message,
+            timestamp=health_alert.timestamp,
+            isRead=health_alert.isRead,
+            severity=health_alert.severity,
         )
         inserted.id = health_alert_id
         return inserted
@@ -113,14 +113,14 @@ def find_diary_entries_by_patient_profile_id(patient_id: int) -> list[DiaryEntry
     for row in rows:
         diary_entry_id, patientProfileId, timestamp, moodLevel, emotions, healthComplaints, foodIntake, notes, suggestion = row
         diary_entry = DiaryEntryModel(
-            patientProfileId,
-            timestamp,
-            moodLevel,
-            emotions,
-            healthComplaints,
-            foodIntake,
-            notes,
-            suggestion
+            patientProfileId=patientProfileId,
+            timestamp=timestamp,
+            moodLevel=moodLevel,
+            emotions=emotions,
+            healthComplaints=healthComplaints,
+            foodIntake=foodIntake,
+            notes=notes,
+            suggestion=suggestion
         )
         diary_entry.id = diary_entry_id
         diary_entries.append(diary_entry)
@@ -139,14 +139,14 @@ def find_diary_entry_by_id(id: int) -> DiaryEntryModel:
         diary_entry_id, patientProfileId, timestamp, moodLevel, emotions, healthComplaints, foodIntake, notes, suggestion = row
 
     diary_entry = DiaryEntryModel(
-        patientProfileId,
-        timestamp,
-        moodLevel,
-        emotions,
-        healthComplaints,
-        foodIntake,
-        notes,
-        suggestion
+        patientProfileId=patientProfileId,
+        timestamp=timestamp,
+        moodLevel=moodLevel,
+        emotions=emotions,
+        healthComplaints=healthComplaints,
+        foodIntake=foodIntake,
+        notes=notes,
+        suggestion=suggestion
     )
     diary_entry.id = diary_entry_id
 
@@ -164,13 +164,13 @@ def find_patient_profile_by_id(id: int) -> PatientProfileModel:
         patient_profile_id, name, tajNumber, languageCode, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
 
     patient_profile = PatientProfileModel(
-        name,
-        tajNumber,
-        languageCode,
-        chronicIllnesses,
-        allergies,
-        drugSensitivities,
-        dateOfBirth,
+        name=name,
+        tajNumber=tajNumber,
+        languageCode=languageCode,
+        chronicIllnesses=chronicIllnesses,
+        allergies=allergies,
+        drugSensitivities=drugSensitivities,
+        dateOfBirth=dateOfBirth,
     )
 
     patient_profile.id = patient_profile_id
@@ -191,13 +191,13 @@ def find_all_patient_profiles() -> list[PatientProfileModel]:
         patient_profile_id, name, tajNumber, languageCode, chronicIllnesses, allergies, drugSensitivities, dateOfBirth = row
 
         patient_profile = PatientProfileModel(
-            name,
-            tajNumber,
-            languageCode,
-            chronicIllnesses,
-            allergies,
-            drugSensitivities,
-            dateOfBirth,
+            name=name,
+            tajNumber=tajNumber,
+            languageCode=languageCode,
+            chronicIllnesses=chronicIllnesses,
+            allergies=allergies,
+            drugSensitivities=drugSensitivities,
+            dateOfBirth=dateOfBirth,
         )
         patient_profile.id = patient_profile_id
 
@@ -217,12 +217,12 @@ def find_health_alert_by_id(id: int) -> HealthAlertModel:
         health_alert_id, patient_profile_id, title, message, timestamp, isRead, severity = row
 
     health_alert = HealthAlertModel(
-        patient_profile_id,
-        title,
-        message,
-        timestamp,
-        isRead,
-        severity,
+        patientProfileId=patient_profile_id,
+        title=title,
+        message=message,
+        timestamp=timestamp,
+        isRead=isRead,
+        severity=severity,
     )
 
     health_alert.id = health_alert_id
@@ -242,12 +242,12 @@ def find_all_health_alerts() -> list[HealthAlertModel]:
         health_alert_id, patient_profile_id, title, message, timestamp, isRead, severity = row
 
         health_alert = HealthAlertModel(
-            patient_profile_id,
-            title,
-            message,
-            timestamp,
-            isRead,
-            severity,
+            patientProfileId=patient_profile_id,
+            title=title,
+            message=message,
+            timestamp=timestamp,
+            isRead=isRead,
+            severity=severity,
         )
         health_alert.id = health_alert_id
 
