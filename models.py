@@ -114,7 +114,7 @@ class PatientProfileModel(BaseModel):
 
     id: Optional[int] = None
     name: str = ""
-    tajNumber: Optional[str] = None
+    tajNumber: Optional[int] = None
     languageCode: str = Field(default="en")
     chronicIllnesses: List[str] = Field(default_factory=list)
     allergies: List[str] = Field(default_factory=list)
