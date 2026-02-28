@@ -261,7 +261,6 @@ def generate_soap(profile_id: int):
     content = payload["content"]
 
     note = convert_soap(profile_id, content, model)
-    note = db.insert_clinical_note(note)
     return jsonify(note.to_json_dict()), 200
 
 
