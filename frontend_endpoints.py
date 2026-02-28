@@ -125,7 +125,7 @@ def get_profile(profile_id: int):
         return jsonify({"error": "Not found"}), 404
     return jsonify(profile.to_json_dict()), 200
 
-@app.route("/profiles/<taj_number>", methods=["GET"])
+@app.route("/profiles/taj/<taj_number>", methods=["GET"])
 def get_profile_by_taj(taj_number: int):
     """Return a single profile by taj number."""
     profile = db.find_patient_profile_by_taj_number(taj_number)
