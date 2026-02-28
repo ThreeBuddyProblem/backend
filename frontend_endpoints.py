@@ -157,15 +157,21 @@ def delete_profile(profile_id: int):
 
 ## Health alert endpoints ################################
 
-@app.route("/alerts", methods=["POST"])
-def create_alert():
+@app.route("/profiles/<patient_profile_id>/alerts", methods=["POST"])
+def create_alert(patient_profile_id: int):
     """Create a new health alert. Validates payload against HealthAlertModel."""
     if not request.is_json:
         return jsonify({"error": "Expected JSON body"}), 400
 
+    patient_profile = db.find_patient_profile_by_id(patient_profile_id)
+    if not patient_profile:
+        return jsonify({"error": "Profile not found"}), 404
+
     payload = request.get_json()
     try:
         alert = HealthAlertModel.parse_obj(payload)
+        if patient_profile.id != alert.patient_profile_id:
+            return jsonify({"error": "Profile ID mismatch in request path and body!"}), 400
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
@@ -173,25 +179,25 @@ def create_alert():
     return jsonify(alert.id), 201
 
 
-@app.route("/alerts", methods=["GET"])
-def list_alerts():
+@app.route("/profiles/<patient_profile_id>/alerts", methods=["GET"])
+def list_alerts(patient_profile_id: int):
     """List all health alerts."""
-    return jsonify([alert.to_json_dict() for alert in db.find_all_health_alerts()]), 200
+    return jsonify([alert.to_json_dict() for alert in db.find_all_health_alerts_by_patient_id(patient_profile_id)]), 200
 
 
-@app.route("/alerts/<alert_id>", methods=["GET"])
-def get_alert(alert_id: int):
+@app.route("/profiles/<patient_profile_id>/alerts/<alert_id>", methods=["GET"])
+def get_alert(patient_profile_id: int, alert_id: int):
     """Return a single alert by id."""
-    health_alert = db.find_health_alert_by_id(alert_id)
+    health_alert = db.find_health_alert_by_id_and_patient_id(patient_profile_id, alert_id)
     if health_alert is None:
         return jsonify({"error": "Not found"}), 404
     return jsonify(health_alert.to_json_dict()), 200
 
 
-@app.route("/alerts/<int:alert_id>", methods=["PUT"])
-def update_alert(alert_id: int):
+@app.route("/profiles/<patient_profile_id>/alerts/<int:alert_id>", methods=["PUT"])
+def update_alert(patient_profile_id: int, alert_id: int):
     """Update an existing alert. Merges payload into stored alert and re-validates."""
-    existing = db.find_health_alert_by_id(alert_id)
+    existing = db.find_health_alert_by_id_and_patient_id(alert_id, patient_profile_id)
     if existing is None:
         return jsonify({"error": "Not found"}), 404
 
@@ -205,14 +211,14 @@ def update_alert(alert_id: int):
     except ValidationError as exc:
         return jsonify({"error": "validation_error", "details": exc.errors()}), 400
 
-    updated = db.update_health_alert(alert_id, alert)
+    updated = db.update_health_alert(alert_id, patient_profile_id, alert)
     return jsonify(updated.to_json_dict()), 200
 
 
-@app.route("/alerts/<int:alert_id>", methods=["DELETE"])
-def delete_alert(alert_id: int):
+@app.route("/profiles/<patient_profile_id>/alerts/<int:alert_id>", methods=["DELETE"])
+def delete_alert(patient_profile_id: int, alert_id: int):
     """Delete a health alert."""
-    if not db.delete_health_alert(alert_id):
+    if not db.delete_health_alert_by_id_and_patient_id(alert_id, patient_profile_id):
         return jsonify({"error": "Not found"}), 404
     return "", 204
 

@@ -142,23 +142,23 @@ def delete_patient_profile(id: int) -> bool:
         return cursor.rowcount > 0
 
 
-def update_health_alert(id: int, health_alert: HealthAlertModel) -> HealthAlertModel | None:
+def update_health_alert(id: int, patient_profile_id: int, health_alert: HealthAlertModel) -> HealthAlertModel | None:
     with get_db_connection() as db_connection:
         cursor = db_connection.cursor()
         cursor.execute(
             const.SQL_UPDATE_HEALTH_ALERT,
             (health_alert.patientProfileId, health_alert.title, health_alert.message,
-             health_alert.timestamp, health_alert.isRead, health_alert.severity, id)
+             health_alert.timestamp, health_alert.isRead, health_alert.severity, id, patient_profile_id)
         )
         if cursor.rowcount == 0:
             return None
-    return find_health_alert_by_id(id)
+    return find_health_alert_by_id_and_patient_id(id, patient_profile_id)
 
 
-def delete_health_alert(id: int) -> bool:
+def delete_health_alert_by_id_and_patient_id(id: int, patient_profile_id: int) -> bool:
     with get_db_connection() as db_connection:
         cursor = db_connection.cursor()
-        cursor.execute(const.SQL_DELETE_HEALTH_ALERT, (id,))
+        cursor.execute(const.SQL_DELETE_HEALTH_ALERT, (id, patient_profile_id))
         return cursor.rowcount > 0
 
 
@@ -275,12 +275,12 @@ def find_all_patient_profiles() -> list[PatientProfileModel]:
     return patient_profiles
 
 
-def find_health_alert_by_id(id: int) -> HealthAlertModel:
+def find_health_alert_by_id_and_patient_id(id: int, patient_profile_id: int) -> HealthAlertModel:
     query = f"SELECT * FROM {const.SQL_HEALTH_ALERTS_TABLE_NAME}" \
-    + " WHERE id = %s;"
+    + " WHERE id = %s AND patient_profile_id = %s;"
     with get_db_connection() as db_connection:
         cursor = db_connection.cursor()
-        cursor.execute(query, [id])
+        cursor.execute(query, [id, patient_profile_id])
         row = cursor.fetchone()
 
         health_alert_id, patient_profile_id, title, message, timestamp, isRead, severity = row
@@ -299,12 +299,13 @@ def find_health_alert_by_id(id: int) -> HealthAlertModel:
     return health_alert
 
 
-def find_all_health_alerts() -> list[HealthAlertModel]:
+def find_all_health_alerts_by_patient_id(patient_profile_id: int) -> list[HealthAlertModel]:
     health_alerts = []
-    query = f"SELECT * FROM {const.SQL_HEALTH_ALERTS_TABLE_NAME}"
+    query = f"SELECT * FROM {const.SQL_HEALTH_ALERTS_TABLE_NAME}" \
+    + " WHERE patient_profile_id = %s;"
     with get_db_connection() as db_connection:
         cursor = db_connection.cursor()
-        cursor.execute(query, [id])
+        cursor.execute(query, [patient_profile_id])
         rows = cursor.fetchall()
 
     for row in rows:
