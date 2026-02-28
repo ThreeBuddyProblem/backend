@@ -12,6 +12,7 @@ import json
 import re
 from typing import List, Dict
 import logging
+import db
 import requests
 
 logger = logging.getLogger(__name__)
@@ -223,20 +224,26 @@ def convert_soap(
       "assessment": "Headache likely due to hypertension is suspected.",
       "plan": "Order twenty-four hour blood pressure monitoring.\nAdvise patient to discontinue aspirin.\nRecommend paracetamol 1000mg as needed for headache relief.\nFollow up in one week with monitor results.\nInstruct patient to return immediately if her condition worsens or she experiences visual disturbances."
     }
+
+    user_language = db.find_patient_profile_by_id(patient_profile_id).languageCode
+
+    target_language = "english" if user_language == "en" else "hungarian"
+
     # Build a compact prompt that emphasizes subjective complaints
     lines = [
-        "You are a clinical scribe. Write a concise note strictly following the SOAP",
+       f"You are a clinical scribe. Write a concise note strictly following the SOAP in {target_language}.",
         "(subjective, objective, assessment, plan) format suitable for clinical documentation from the following text:",
         "##########",
         f"{content}",
         "##########",
+        "You should write your output in the content's original language.",
         "Be factual and use clinical-style wording.",
         "Your output MUST match this format (JSON-formatted SOAP note):",
         '{"subjective": "", "objective": "", "assessment": "", "plan": ""}',
-        "You can take the following as an example output:",
-        "##########",
-        f"{example_output}"
-        "##########",
+        # "You can take the following as an example output:",
+        # "##########",
+        # f"{example_output}"
+        # "##########",
         "DO NOT use ANY syntax highlighting, only write an output matching the exact format outlined above and don't change the original language!"
     ]
 
