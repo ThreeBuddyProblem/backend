@@ -69,10 +69,10 @@ class DiaryEntryModel(BaseModel):
             "suggestion": self.suggestion,
         }
 
-class AlertSeverity(str, Enum):
-    info = "info"
-    warning = "warning"
-    urgent = "urgent"
+class AlertSeverity(int, Enum):
+    info = 0
+    warning = 1
+    urgent = 2
 
     @classmethod
     def _missing_(cls, value):
