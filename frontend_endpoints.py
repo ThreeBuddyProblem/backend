@@ -120,7 +120,7 @@ def create_profile():
 @app.route("/profiles", methods=["GET"])
 def list_profiles():
     """List all patient profiles."""
-    return jsonify([p.to_json_dict() for p in db.find_all_patient_profiles()]), 200
+    return jsonify([profile.to_json_dict() for profile in db.find_all_patient_profiles()]), 200
 
 
 @app.route("/profiles/<profile_id>", methods=["GET"])
@@ -182,7 +182,7 @@ def create_alert():
 @app.route("/alerts", methods=["GET"])
 def list_alerts():
     """List all health alerts."""
-    return jsonify([a.to_json_dict() for a in db.find_all_health_alerts()]), 200
+    return jsonify([alert.to_json_dict() for alert in db.find_all_health_alerts()]), 200
 
 
 @app.route("/alerts/<alert_id>", methods=["GET"])
