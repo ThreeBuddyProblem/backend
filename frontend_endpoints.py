@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 import db
 from models import DiaryEntryModel, PatientProfileModel, HealthAlertModel, ClinicalNoteModel
-from llm_dispatcher import generate_recommendations, generate_summary
+from llm_dispatcher import generate_recommendations, generate_summary, convert_soap
 
 
 app = Flask(__name__)
@@ -249,6 +249,20 @@ def create_clinical_note():
     note = db.insert_clinical_note(note)
     return jsonify(note.id), 201
 
+
+@app.route("/profiles/<profile_id>/soap", methods=["POST"])
+def generate_soap(profile_id: int):
+    """Convert free-form text to SOAP format."""
+    if not request.is_json:
+        return jsonify({"error": "Expected JSON body"}), 400
+    model = request.args.get("model", "gemma3:4b")
+
+    payload = request.get_json()
+    content = payload["content"]
+
+    note = convert_soap(profile_id, content, model)
+    note = db.insert_clinical_note(note)
+    return jsonify(note.to_json_dict()), 200
 
 
 @app.route("/profiles/<profile_id>/clinical_notes", methods=["GET"])

@@ -7,6 +7,7 @@ Usage:
     recs = generate_recommendations(diary_entries)
     # recs is a list of dicts: [{"severity": 0, "title": "...", "message": "..."}, ...]
 """
+from models import ClinicalNoteModel
 import json
 import re
 from typing import List, Dict
@@ -204,3 +205,78 @@ def generate_summary(
         summary = summary[:397].rstrip() + "..."
 
     return summary
+
+
+def convert_soap(
+    patient_profile_id: int,
+    content: str,
+    model: str = "gemma3:4b",
+    api_url: str = "http://192.168.73.139:11434/api/generate",
+    timeout: float = 30.0,
+) -> ClinicalNoteModel:
+    """Generate a ClinicalNote in SOAP-format from free-format text.
+    """
+
+    example_output = {
+      "subjective": "The patient presents to the office complaining of a headache and dizziness. She reports a continuous headache for two days, primarily located behind her forehead. The headache is described as dull and pressure-like in nature. Dizziness occurs when standing, without accompanying nausea. The patient has been taking aspirin at home twice daily, reporting partial pain relief but no complete resolution. She denies any previously known hypertension.",
+      "objective": "Blood Pressure: 158/96\nPulse: 78 bpm, regular\nNeurological Exam: Intact neurological status\nNeck Range of Motion: Intact, free range of movement\nEar Exam: No abnormalities detected",
+      "assessment": "Headache likely due to hypertension is suspected.",
+      "plan": "Order twenty-four hour blood pressure monitoring.\nAdvise patient to discontinue aspirin.\nRecommend paracetamol 1000mg as needed for headache relief.\nFollow up in one week with monitor results.\nInstruct patient to return immediately if her condition worsens or she experiences visual disturbances."
+    }
+    # Build a compact prompt that emphasizes subjective complaints
+    lines = [
+        "You are a clinical scribe. Write a concise note strictly following the SOAP",
+        "(subjective, objective, assessment, plan) format suitable for clinical documentation from the following text:",
+        "##########",
+        f"{content}",
+        "##########",
+        "Be factual and use clinical-style wording.",
+        "Your output MUST match this format (JSON-formatted SOAP note):",
+        '{"subjective": "", "objective": "", "assessment": "", "plan": ""}',
+        "You can take the following as an example output:",
+        "##########",
+        f"{example_output}"
+        "##########",
+        "DO NOT use ANY syntax highlighting, only write an output matching the exact format outlined above!"
+    ]
+
+    prompt = "\n".join(lines)
+
+    payload = {"model": model, "prompt": prompt, "stream": False}
+
+    logger.debug("Sending LLM summary request to %s with model=%s", api_url, model)
+    try:
+        resp = requests.post(api_url, json=payload, timeout=timeout)
+    except requests.RequestException as exc:
+        logger.exception("LLM request failed: %s", exc)
+        raise
+
+    if not resp.ok:
+        msg = f"LLM API returned {resp.status_code}: {resp.text}"
+        logger.error(msg)
+        resp.raise_for_status()
+
+    try:
+        body = resp.json()
+    except ValueError:
+        logger.error("LLM returned non-JSON response: %s", resp.text)
+        raise
+
+    llm_response = body["response"]
+
+    pattern = re.compile(r'"([^"]+)"\s*:\s*"((?:\\.|[^"\\])*)"', re.DOTALL)
+    matches = pattern.findall(llm_response)
+    if not matches:
+        raise ValueError("LLM response did not match keys needed for SOAP format.")
+
+    print(f"Found matches: {matches}")
+
+    note = ClinicalNoteModel(
+        patientProfileId=patient_profile_id,
+        subjective=matches[0][1],
+        objective=matches[1][1],
+        assessment=matches[2][1],
+        plan=matches[3][1]
+    )
+
+    return note

@@ -162,7 +162,7 @@ class PatientProfileModel(BaseModel):
 class ClinicalNoteModel(BaseModel):
     id: Optional[int] = None
     patientProfileId: int
-    timestamp: datetime
+    timestamp: datetime = datetime.utcnow()
     subjective: str
     objective: str
     assessment: str
