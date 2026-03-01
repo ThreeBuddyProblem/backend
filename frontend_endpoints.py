@@ -1,3 +1,4 @@
+import const
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -436,14 +437,8 @@ def get_summary(profile_id: int):
 
     return jsonify({"summary": summary}), 200
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Backend server")
-    parser.add_argument("--port", required=False, help="Port of the server", default=5000)
-    return parser.parse_args()
-
 if __name__ == "__main__":
     # Useful defaults for local development. In production, run behind a WSGI server.
-    args = parse_args()
     load_dotenv()
     db.init_db()
-    app.run(host="0.0.0.0", port=args.port, debug=True)
+    app.run(host="0.0.0.0", port=const.CLI_ARGS.port, debug=True)

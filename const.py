@@ -1,8 +1,13 @@
+import cli
 import os
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+CLI_ARGS=cli.parse_args()
+
+LLM_API_HOST=os.getenv("LLM_API_HOST", "")
 
 DB_MIN_CONN = 1
 DB_MAX_CONN = 10

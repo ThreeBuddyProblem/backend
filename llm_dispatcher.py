@@ -7,6 +7,7 @@ Usage:
     recs = generate_recommendations(diary_entries)
     # recs is a list of dicts: [{"severity": 0, "title": "...", "message": "..."}, ...]
 """
+import const
 from models import ClinicalNoteModel
 import json
 import re
@@ -62,7 +63,7 @@ Rules:
 def generate_recommendations(
     entries: List[Dict],
     model: str = "gemma3:4b",
-    api_url: str = "http://192.168.73.139:11434/api/generate",
+    api_url: str = f"{const.LLM_API_HOST}/api/generate",
     timeout: float = 30.0,
 ) -> List[Dict]:
     if not isinstance(entries, list):
@@ -132,7 +133,7 @@ def _extract_text_from_body(body: Dict) -> str:
 def generate_summary(
     entries: List[Dict],
     model: str = "gemma3:4b",
-    api_url: str = "http://192.168.73.139:11434/api/generate",
+    api_url: str = f"{const.LLM_API_HOST}/api/generate",
     timeout: float = 30.0,
 ) -> str:
     """Generate a short subjective-summary (SOAP 'S' component) from diary entries.
@@ -212,7 +213,7 @@ def convert_soap(
     patient_profile_id: int,
     content: str,
     model: str = "gemma3:4b",
-    api_url: str = "http://192.168.73.139:11434/api/generate",
+    api_url: str = f"{const.LLM_API_HOST}/api/generate",
     timeout: float = 30.0,
 ) -> ClinicalNoteModel:
     """Generate a ClinicalNote in SOAP-format from free-format text.
